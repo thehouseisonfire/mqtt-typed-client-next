@@ -44,7 +44,7 @@ arcstr = "1.2"
 wincode = { version = "0.5.5", features = ["derive"], optional = true }
 bytes = "1.10"
 futures = "0.3"
-lru = "0.15"
+lru = "0.18"
 rumqttc-v4 = { workspace = true, optional = true }
 rumqttc-v5 = { workspace = true, optional = true }
 serde = { version = "1.0", features = ["derive"] }
