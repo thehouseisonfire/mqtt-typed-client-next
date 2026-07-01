@@ -1,0 +1,30 @@
+[package]
+name = "mqtt-typed-client-macros-next"
+version = "0.2.0"
+edition = "2021"
+rust-version = "1.85.1"
+description = "Procedural macros for type-safe async MQTT client with automatic topic routing"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/holovskyi/mqtt-typed-client"
+keywords = ["mqtt", "macros", "typed", "procedural"]
+categories = ["development-tools::procedural-macro-helpers"]
+authors = ["Artem Holovskyi <artem.holovskyi@gmail.com>"]
+readme = "README.md"
+
+[lib]
+name = "mqtt_typed_client_macros"
+proc-macro = true
+
+[features]
+rumqttc-v4 = ["mqtt-typed-client-core/rumqttc-v4"]
+rumqttc-v5 = ["mqtt-typed-client-core/rumqttc-v5"]
+
+[dependencies]
+proc-macro2 = "1.0.95"
+quote = "1.0.40"
+syn = "2.0.103"
+mqtt-typed-client-core = { package = "mqtt-typed-client-core-next", path = "../core", version = "0.2.0" }
+
+[dev-dependencies]
+tokio = "1.45.1"
+mqtt-typed-client-core = { package = "mqtt-typed-client-core-next", path = "../core", version = "0.2.0" }
