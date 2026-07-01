@@ -10,7 +10,7 @@ compile_error!("enable exactly one of `rumqttc-v4` or `rumqttc-v5`");
 
 #[cfg(feature = "rumqttc-v4")]
 extern crate rumqttc_v4 as rumqttc;
-#[cfg(feature = "rumqttc-v5")]
+#[cfg(all(feature = "rumqttc-v5", not(feature = "rumqttc-v4")))]
 extern crate rumqttc_v5 as rumqttc;
 
 pub use mqtt_typed_client_core::*;

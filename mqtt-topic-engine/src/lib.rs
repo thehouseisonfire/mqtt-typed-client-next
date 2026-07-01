@@ -9,7 +9,7 @@ compile_error!("features `rumqttc-v4` and `rumqttc-v5` are mutually exclusive");
 
 #[cfg(feature = "rumqttc-v4")]
 extern crate rumqttc_v4 as rumqttc;
-#[cfg(feature = "rumqttc-v5")]
+#[cfg(all(feature = "rumqttc-v5", not(feature = "rumqttc-v4")))]
 extern crate rumqttc_v5 as rumqttc;
 
 // Public modules
