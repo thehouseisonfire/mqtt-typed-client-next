@@ -1,0 +1,51 @@
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+/// Setup tracing based on environment or explicit configuration
+///
+/// Priority (first match wins):
+/// 1. If `force_level` provided - use it
+/// 2. If RUST_LOG_DISABLE=1 - disable tracing completely
+/// 3. If RUST_LOG set - use environment configuration
+/// 4. Otherwise - no tracing (silent)
+#[allow(dead_code)]
+pub fn setup(force_level: Option<&str>) {
+    load_env_files();
+
+    if std::env::var("RUST_LOG_DISABLE").is_ok() {
+        return;
+    }
+
+    let filter = if let Some(level) = force_level {
+        tracing_subscriber::EnvFilter::new(level)
+    } else if std::env::var("RUST_LOG").is_ok() {
+        tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into())
+    } else {
+        return;
+    };
+
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_target(true)
+                .with_thread_ids(false)
+                .with_thread_names(false)
+                .with_file(false)
+                .with_line_number(false)
+                .compact(),
+        )
+        .init();
+}
+
+/// Setup tracing with specific level
+#[allow(dead_code)]
+pub fn setup_with_level(level: &str) {
+    setup(Some(level));
+}
+
+fn load_env_files() {
+    dotenv::from_filename("examples/.env").ok();
+    if std::path::Path::new("examples/.env.local").exists() {
+        dotenv::from_filename("examples/.env.local").ok();
+    }
+}

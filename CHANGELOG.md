@@ -11,14 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fork crate to be compatible with `rumqttc-next` v4 and v5
 - Switch default serializer from `bincode` to `wincode`
+- Port examples from upstream, adapted for `WincodeSerializer` and `rumqttc-v4`
 - Bump `lru` from 0.15 to 0.18
 - Bump `prost` from 0.12 to 0.14 (MSRV 1.85)
 - Bump `ron` from 0.8 to 0.12 (MSRV 1.64)
 - Bump `flexbuffers` from 2.0 to 25.12
-
-### Removed
-
-- Remove unused dev-dependencies `dotenv` and `rustls-pemfile`
 
 ### Fixed
 
