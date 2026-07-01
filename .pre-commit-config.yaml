@@ -24,9 +24,10 @@ repos:
           --each-feature
           --exclude-all-features
           --no-dev-deps
-          --optional-deps url
-          -p rumqttc-v4-next
-          -p rumqttc-v5-next
+          -p mqtt-typed-client-next
+          -p mqtt-typed-client-core-next
+          -p mqtt-typed-client-macros-next
+          -p mqtt-topic-engine-next
           '
         language: system
         pass_filenames: false
@@ -82,10 +83,11 @@ repos:
           cargo hack
           --each-feature
           --exclude-all-features
-          --optional-deps url
           test
-          -p rumqttc-v4-next
-          -p rumqttc-v5-next
+          -p mqtt-typed-client-next
+          -p mqtt-typed-client-core-next
+          -p mqtt-typed-client-macros-next
+          -p mqtt-topic-engine-next
           '
         language: system
         pass_filenames: false
@@ -99,10 +101,10 @@ repos:
           set -euo pipefail;
           export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-6}";
 
-          cargo test -p rumqttc-v4-next --no-default-features --features "websocket,use-rustls-ring";
-          cargo test -p rumqttc-v5-next --no-default-features --features "websocket,use-rustls-ring";
-          cargo test -p rumqttc-v4-next --no-default-features --features "websocket,use-rustls-aws-lc";
-          cargo test -p rumqttc-v5-next --no-default-features --features "websocket,use-rustls-aws-lc";
+          cargo test -p mqtt-typed-client-next --no-default-features --features "rumqttc-v4,rumqttc-websocket,rumqttc-use-rustls";
+          cargo test -p mqtt-typed-client-next --no-default-features --features "rumqttc-v5,rumqttc-websocket,rumqttc-use-rustls";
+          cargo test -p mqtt-typed-client-next --no-default-features --features "rumqttc-v4,rumqttc-websocket,rumqttc-use-rustls-no-provider";
+          cargo test -p mqtt-typed-client-next --no-default-features --features "rumqttc-v5,rumqttc-websocket,rumqttc-use-rustls-no-provider";
           '
         language: system
         pass_filenames: false
@@ -116,13 +118,13 @@ repos:
           set -euo pipefail;
           export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-6}";
 
-          if cargo check -p rumqttc-v4-next --no-default-features --features "use-rustls-aws-lc,use-rustls-ring" 2>/dev/null; then
-            echo "ERROR - rumqttc-v4-next rustls provider conflict guard failed";
+          if cargo check -p mqtt-typed-client-next --no-default-features --features "rumqttc-v4,rumqttc-use-rustls,rumqttc-use-rustls-no-provider" 2>/dev/null; then
+            echo "ERROR - mqtt-typed-client-next rustls provider conflict guard failed";
             exit 1;
           fi;
 
-          if cargo check -p rumqttc-v5-next --no-default-features --features "use-rustls-aws-lc,use-rustls-ring" 2>/dev/null; then
-            echo "ERROR - rumqttc-v5-next rustls provider conflict guard failed";
+          if cargo check -p mqtt-typed-client-next --no-default-features --features "rumqttc-v5,rumqttc-use-rustls,rumqttc-use-rustls-no-provider" 2>/dev/null; then
+            echo "ERROR - mqtt-typed-client-next rustls provider conflict guard failed";
             exit 1;
           fi;
           '
