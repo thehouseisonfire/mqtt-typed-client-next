@@ -9,33 +9,32 @@
 // explicitly for backward compatibility with v0.1.0.
 pub use mqtt_topic_engine::topic_match::TopicMatchError;
 pub use mqtt_topic_engine::{
-	// Main types
-	CacheStrategy,
-	MatcherResult,
-	PatternResult,
-	RouterResult,
+    // Error utilities
+    limits,
+    validation,
+    // Main types
+    CacheStrategy,
+    MatcherResult,
+    PatternResult,
+    RouterResult,
 
-	SubscriptionId,
+    SubscriptionId,
 
-	// Error types
-	TopicError,
-	TopicFormatError,
-	// Matching types
-	TopicMatch,
-	TopicMatcherError,
-	TopicPath,
+    // Error types
+    TopicError,
+    TopicFormatError,
+    // Matching types
+    TopicMatch,
+    TopicMatcherError,
+    TopicPath,
 
-	TopicPatternError,
-	TopicPatternItem,
-	TopicPatternPath,
-	// Result type aliases
-	TopicResult,
-	TopicRouter,
-	TopicRouterError,
-
-	// Error utilities
-	limits,
-	validation,
+    TopicPatternError,
+    TopicPatternItem,
+    TopicPatternPath,
+    // Result type aliases
+    TopicResult,
+    TopicRouter,
+    TopicRouterError,
 };
 
 // Create module aliases for backward compatibility with v0.1.0 submodule paths
@@ -49,35 +48,30 @@ pub use mqtt_topic_engine::{
 ///
 /// Re-exported from mqtt-topic-engine for backward compatibility.
 pub mod topic_match {
-	pub use mqtt_topic_engine::topic_match::{
-		TopicMatch, TopicMatchError, TopicPath,
-	};
+    pub use mqtt_topic_engine::topic_match::{TopicMatch, TopicMatchError, TopicPath};
 }
 
 /// Topic pattern path types
 ///
 /// Re-exported from mqtt-topic-engine for backward compatibility.
 pub mod topic_pattern_path {
-	pub use mqtt_topic_engine::{TopicFormatError, TopicPatternPath};
+    pub use mqtt_topic_engine::{TopicFormatError, TopicPatternPath};
 }
 
 /// Topic error types and validation utilities
 ///
 /// Re-exported from mqtt-topic-engine for backward compatibility.
 pub mod error {
-	pub use mqtt_topic_engine::error::{
-		MatcherResult, PatternResult, RouterResult, TopicError, TopicResult,
-		limits, validation,
-	};
+    pub use mqtt_topic_engine::error::{
+        limits, validation, MatcherResult, PatternResult, RouterResult, TopicError, TopicResult,
+    };
 }
 
 /// Topic pattern item types
 ///
 /// Re-exported from mqtt-topic-engine for backward compatibility.
 pub mod topic_pattern_item {
-	pub use mqtt_topic_engine::topic_pattern_item::{
-		TopicPatternError, TopicPatternItem,
-	};
+    pub use mqtt_topic_engine::topic_pattern_item::{TopicPatternError, TopicPatternItem};
 }
 
 /// Topic matcher error type
@@ -85,14 +79,12 @@ pub mod topic_pattern_item {
 /// Re-exported from mqtt-topic-engine for backward compatibility. The matcher
 /// node/trait internals are intentionally not re-exported.
 pub mod topic_matcher {
-	pub use mqtt_topic_engine::topic_matcher::TopicMatcherError;
+    pub use mqtt_topic_engine::topic_matcher::TopicMatcherError;
 }
 
 /// Topic router types
 ///
 /// Re-exported from mqtt-topic-engine for backward compatibility.
 pub mod topic_router {
-	pub use mqtt_topic_engine::topic_router::{
-		SubscriptionId, TopicRouter, TopicRouterError,
-	};
+    pub use mqtt_topic_engine::topic_router::{SubscriptionId, TopicRouter, TopicRouterError};
 }

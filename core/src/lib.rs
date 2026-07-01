@@ -131,16 +131,11 @@ pub mod topic;
 
 // === Core Public API ===
 // Main client types
-pub use client::{
-	ClientSettings, MqttClient, MqttClientConfig, MqttClientError,
-	TypedLastWill,
-};
+pub use client::{ClientSettings, MqttClient, MqttClientConfig, MqttClientError, TypedLastWill};
 // High-level typed publishers and subscribers
 pub use client::{MqttPublisher, MqttSubscriber, SubscriptionBuilder};
 pub use connection::MqttConnection;
 // Message serialization
-#[cfg(feature = "wincode-serializer")]
-pub use message_serializer::WincodeSerializer;
 #[cfg(feature = "cbor")]
 pub use message_serializer::CborSerializer;
 #[cfg(feature = "flexbuffers")]
@@ -156,6 +151,8 @@ pub use message_serializer::PostcardSerializer;
 pub use message_serializer::ProtobufSerializer;
 #[cfg(feature = "ron")]
 pub use message_serializer::RonSerializer;
+#[cfg(feature = "wincode-serializer")]
+pub use message_serializer::WincodeSerializer;
 // === Advanced API ===
 // Advanced subscription configuration
 pub use routing::SubscriptionConfig;
@@ -169,8 +166,7 @@ pub use crate::rumqttc::QoS;
 pub use crate::rumqttc::Transport;
 // Structured subscribers (macro support)
 pub use structured::{
-	FromMqttMessage, MessageConversionError, MqttTopicSubscriber,
-	extract_topic_parameter,
+    extract_topic_parameter, FromMqttMessage, MessageConversionError, MqttTopicSubscriber,
 };
 pub use topic::CacheStrategy;
 // Topic pattern types (for manual pattern handling)
@@ -190,27 +186,26 @@ pub type Result<T> = std::result::Result<T, MqttClientError>;
 /// ```
 pub mod prelude {
 
-	#[cfg(feature = "wincode-serializer")]
-	pub use crate::WincodeSerializer;
-	#[cfg(feature = "cbor")]
-	pub use crate::CborSerializer;
-	#[cfg(feature = "flexbuffers")]
-	pub use crate::FlexbuffersSerializer;
-	#[cfg(feature = "json")]
-	pub use crate::JsonSerializer;
-	#[cfg(feature = "messagepack")]
-	pub use crate::MessagePackSerializer;
-	#[cfg(feature = "postcard")]
-	pub use crate::PostcardSerializer;
-	#[cfg(feature = "protobuf")]
-	pub use crate::ProtobufSerializer;
-	#[cfg(feature = "ron")]
-	pub use crate::RonSerializer;
-	pub use crate::{
-		ClientSettings, MessageSerializer, MqttClient, MqttClientConfig,
-		MqttClientError, MqttConnection, MqttOptions, QoS, Result,
-		SubscriptionBuilder, TypedLastWill,
-	};
+    #[cfg(feature = "cbor")]
+    pub use crate::CborSerializer;
+    #[cfg(feature = "flexbuffers")]
+    pub use crate::FlexbuffersSerializer;
+    #[cfg(feature = "json")]
+    pub use crate::JsonSerializer;
+    #[cfg(feature = "messagepack")]
+    pub use crate::MessagePackSerializer;
+    #[cfg(feature = "postcard")]
+    pub use crate::PostcardSerializer;
+    #[cfg(feature = "protobuf")]
+    pub use crate::ProtobufSerializer;
+    #[cfg(feature = "ron")]
+    pub use crate::RonSerializer;
+    #[cfg(feature = "wincode-serializer")]
+    pub use crate::WincodeSerializer;
+    pub use crate::{
+        ClientSettings, MessageSerializer, MqttClient, MqttClientConfig, MqttClientError,
+        MqttConnection, MqttOptions, QoS, Result, SubscriptionBuilder, TypedLastWill,
+    };
 }
 
 /// Advanced types and utilities for complex use cases
@@ -226,16 +221,14 @@ pub mod prelude {
 /// ```
 pub mod advanced {
 
-	// High-level routing errors only
-	pub use crate::routing::SubscriptionError;
-	// Topic utilities
-	pub use crate::topic::{
-		SubscriptionId, TopicRouterError, limits, validation,
-	};
-	pub use crate::{
-		CacheStrategy, MqttPublisher, MqttSubscriber, SubscriptionConfig,
-		TopicError, TopicPatternPath,
-	};
+    // High-level routing errors only
+    pub use crate::routing::SubscriptionError;
+    // Topic utilities
+    pub use crate::topic::{limits, validation, SubscriptionId, TopicRouterError};
+    pub use crate::{
+        CacheStrategy, MqttPublisher, MqttSubscriber, SubscriptionConfig, TopicError,
+        TopicPatternPath,
+    };
 }
 
 /// Error types used throughout the library
@@ -248,11 +241,9 @@ pub mod advanced {
 /// ```
 pub mod errors {
 
-	// High-level routing errors
-	pub use crate::routing::SubscriptionError;
-	// Topic-related errors - specific types for advanced usage
-	pub use crate::topic::{TopicMatcherError, TopicRouterError};
-	pub use crate::{
-		MessageConversionError, MqttClientError, TopicError, TopicPatternError,
-	};
+    // High-level routing errors
+    pub use crate::routing::SubscriptionError;
+    // Topic-related errors - specific types for advanced usage
+    pub use crate::topic::{TopicMatcherError, TopicRouterError};
+    pub use crate::{MessageConversionError, MqttClientError, TopicError, TopicPatternError};
 }

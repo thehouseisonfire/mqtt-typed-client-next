@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
-use arcstr::ArcStr;
 use crate::rumqttc::{AsyncClient, PublishOptions, QoS};
+use arcstr::ArcStr;
 
 use super::error::MqttClientError;
 use crate::message_serializer::MessageSerializer;

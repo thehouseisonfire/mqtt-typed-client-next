@@ -25,247 +25,228 @@ use crate::topic_pattern_item::{TopicPatternError, TopicPatternItem};
 /// Error types for formatting topics with parameters
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TopicFormatError {
-	/// Attempted to format a topic with a hash wildcard (#) which is not allowed
-	#[error("Cannot format topic with # wildcard for publishing")]
-	HashWildcardNotSupported,
+    /// Attempted to format a topic with a hash wildcard (#) which is not allowed
+    #[error("Cannot format topic with # wildcard for publishing")]
+    HashWildcardNotSupported,
 
-	/// Parameter count mismatch when formatting a topic
-	#[error(
-		"Parameter count mismatch: expected {expected}, provided {provided}"
-	)]
-	ParameterCountMismatch {
-		/// Expected number of parameters
-		expected: usize,
-		/// Number of parameters actually provided
-		provided: usize,
-	},
-	/// Error during formatting, e.g. invalid parameter type
-	#[error("Error formatting topic")]
-	FormatError {
-		#[source]
-		/// The underlying formatting error
-		source: fmt::Error,
-	},
+    /// Parameter count mismatch when formatting a topic
+    #[error("Parameter count mismatch: expected {expected}, provided {provided}")]
+    ParameterCountMismatch {
+        /// Expected number of parameters
+        expected: usize,
+        /// Number of parameters actually provided
+        provided: usize,
+    },
+    /// Error during formatting, e.g. invalid parameter type
+    #[error("Error formatting topic")]
+    FormatError {
+        #[source]
+        /// The underlying formatting error
+        source: fmt::Error,
+    },
 }
 
 impl From<fmt::Error> for TopicFormatError {
-	fn from(source: fmt::Error) -> Self {
-		TopicFormatError::FormatError { source }
-	}
+    fn from(source: fmt::Error) -> Self {
+        TopicFormatError::FormatError { source }
+    }
 }
 
 /// Parsed MQTT topic pattern with wildcard support
 #[derive(Debug)]
 pub struct TopicPatternPath {
-	template_pattern: ArcStr, // original topic pattern as a string
-	mqtt_topic_subscription: ArcStr, // mqtt topic pattern with wildcards "sensors/+/data"
-	segments: Vec<TopicPatternItem>,
-	/// Optional LRU cache for topic match results.
-	///
-	/// Uses `Mutex` instead of `RefCell` for interior mutability because:
-	/// 1. This struct needs to be `Send + Sync` to work in the actor-based subscription manager
-	/// 2. Although used in single-threaded actor context, `RefCell` is not `Send`
-	/// 3. No contention occurs since access is serialized within the actor's event loop
-	/// 4. `Mutex` provides the same interior mutability as `RefCell` but with `Send + Sync`
-	///
-	/// **Note:** This field is only available with the `lru-cache` feature enabled.
-	#[cfg(feature = "lru-cache")]
-	match_cache: Option<Mutex<LruCache<ArcStr, Arc<TopicMatch>>>>,
+    template_pattern: ArcStr,        // original topic pattern as a string
+    mqtt_topic_subscription: ArcStr, // mqtt topic pattern with wildcards "sensors/+/data"
+    segments: Vec<TopicPatternItem>,
+    /// Optional LRU cache for topic match results.
+    ///
+    /// Uses `Mutex` instead of `RefCell` for interior mutability because:
+    /// 1. This struct needs to be `Send + Sync` to work in the actor-based subscription manager
+    /// 2. Although used in single-threaded actor context, `RefCell` is not `Send`
+    /// 3. No contention occurs since access is serialized within the actor's event loop
+    /// 4. `Mutex` provides the same interior mutability as `RefCell` but with `Send + Sync`
+    ///
+    /// **Note:** This field is only available with the `lru-cache` feature enabled.
+    #[cfg(feature = "lru-cache")]
+    match_cache: Option<Mutex<LruCache<ArcStr, Arc<TopicMatch>>>>,
 
-	parameter_bindings: Option<SmallVec<[(ArcStr, ArcStr); 4]>>,
+    parameter_bindings: Option<SmallVec<[(ArcStr, ArcStr); 4]>>,
 }
 
 impl Clone for TopicPatternPath {
-	fn clone(&self) -> Self {
-		Self {
-			template_pattern: self.template_pattern.clone(),
-			mqtt_topic_subscription: self.mqtt_topic_subscription.clone(),
-			segments: self.segments.clone(),
-			#[cfg(feature = "lru-cache")]
-			match_cache: self.match_cache.as_ref().map(|cache| {
-				let cache_guard = cache.lock().unwrap();
-				let capacity = cache_guard.cap();
-				drop(cache_guard);
-				Mutex::new(LruCache::new(capacity))
-			}),
-			parameter_bindings: self.parameter_bindings.clone(),
-		}
-	}
+    fn clone(&self) -> Self {
+        Self {
+            template_pattern: self.template_pattern.clone(),
+            mqtt_topic_subscription: self.mqtt_topic_subscription.clone(),
+            segments: self.segments.clone(),
+            #[cfg(feature = "lru-cache")]
+            match_cache: self.match_cache.as_ref().map(|cache| {
+                let cache_guard = cache.lock().unwrap();
+                let capacity = cache_guard.cap();
+                drop(cache_guard);
+                Mutex::new(LruCache::new(capacity))
+            }),
+            parameter_bindings: self.parameter_bindings.clone(),
+        }
+    }
 }
 
 impl TopicPatternPath {
-	/// Creates a topic pattern from string with optional caching.
-	pub fn new_from_string(
-		topic_pattern: impl Into<ArcStr>,
-		cache_strategy: CacheStrategy,
-	) -> Result<Self, TopicPatternError> {
-		let topic_pattern = topic_pattern.into();
-		if topic_pattern.is_empty() || topic_pattern.trim().is_empty() {
-			return Err(TopicPatternError::EmptyTopic);
-		}
+    /// Creates a topic pattern from string with optional caching.
+    pub fn new_from_string(
+        topic_pattern: impl Into<ArcStr>,
+        cache_strategy: CacheStrategy,
+    ) -> Result<Self, TopicPatternError> {
+        let topic_pattern = topic_pattern.into();
+        if topic_pattern.is_empty() || topic_pattern.trim().is_empty() {
+            return Err(TopicPatternError::EmptyTopic);
+        }
 
-		let segments: Result<Vec<_>, _> = topic_pattern
-			.split('/')
-			.map(|s| topic_pattern.substr_from(s))
-			.map(TopicPatternItem::try_from)
-			.collect();
+        let segments: Result<Vec<_>, _> = topic_pattern
+            .split('/')
+            .map(|s| topic_pattern.substr_from(s))
+            .map(TopicPatternItem::try_from)
+            .collect();
 
-		let segments = segments?;
+        let segments = segments?;
 
-		//Error on duplicate named parameters
-		let mut seen_names = HashSet::new();
-		for segment in &segments {
-			if let Some(name) = segment.param_name() {
-				if !seen_names.insert(name.to_string()) {
-					return Err(TopicPatternError::wildcard_usage(
-						segment.as_str(),
-					));
-				}
-			}
-		}
+        //Error on duplicate named parameters
+        let mut seen_names = HashSet::new();
+        for segment in &segments {
+            if let Some(name) = segment.param_name() {
+                if !seen_names.insert(name.to_string()) {
+                    return Err(TopicPatternError::wildcard_usage(segment.as_str()));
+                }
+            }
+        }
 
-		if let Some(hash_pos) = segments
-			.iter()
-			.position(|s| matches!(*s, TopicPatternItem::Hash(_)))
-		{
-			if hash_pos != segments.len() - 1 {
-				return Err(TopicPatternError::hash_position(
-					topic_pattern.as_str(),
-				));
-			}
-		}
+        if let Some(hash_pos) = segments
+            .iter()
+            .position(|s| matches!(*s, TopicPatternItem::Hash(_)))
+        {
+            if hash_pos != segments.len() - 1 {
+                return Err(TopicPatternError::hash_position(topic_pattern.as_str()));
+            }
+        }
 
-		#[cfg(feature = "lru-cache")]
-		let match_cache = match cache_strategy {
-			| CacheStrategy::Lru(cache_size) => {
-				Some(Mutex::new(LruCache::new(cache_size)))
-			}
-			| CacheStrategy::NoCache => None,
-		};
+        #[cfg(feature = "lru-cache")]
+        let match_cache = match cache_strategy {
+            CacheStrategy::Lru(cache_size) => Some(Mutex::new(LruCache::new(cache_size))),
+            CacheStrategy::NoCache => None,
+        };
 
-		#[cfg(not(feature = "lru-cache"))]
-		{
-			if let Some(capacity) = cache_strategy.capacity() {
-				tracing::warn!(
-					capacity = capacity.get(),
-					pattern = %topic_pattern,
-					"LRU cache strategy provided for topic pattern '{}' with capacity {}, \
-					but 'lru-cache' feature is disabled. Caching will not be used. \
-					Enable 'lru-cache' feature in Cargo.toml to use caching.",
-					topic_pattern,
-					capacity.get()
-				);
-			}
-		}
+        #[cfg(not(feature = "lru-cache"))]
+        {
+            if let Some(capacity) = cache_strategy.capacity() {
+                tracing::warn!(
+                    capacity = capacity.get(),
+                    pattern = %topic_pattern,
+                    "LRU cache strategy provided for topic pattern '{}' with capacity {}, \
+                    but 'lru-cache' feature is disabled. Caching will not be used. \
+                    Enable 'lru-cache' feature in Cargo.toml to use caching.",
+                    topic_pattern,
+                    capacity.get()
+                );
+            }
+        }
 
-		Ok(Self {
-			template_pattern: topic_pattern,
-			mqtt_topic_subscription: ArcStr::from(
-				Self::to_mqtt_subscription_pattern(&segments),
-			),
-			segments,
-			#[cfg(feature = "lru-cache")]
-			match_cache,
-			parameter_bindings: None,
-		})
-	}
+        Ok(Self {
+            template_pattern: topic_pattern,
+            mqtt_topic_subscription: ArcStr::from(Self::to_mqtt_subscription_pattern(&segments)),
+            segments,
+            #[cfg(feature = "lru-cache")]
+            match_cache,
+            parameter_bindings: None,
+        })
+    }
 
-	/// Get the cache strategy of this topic pattern.
-	pub fn cache_strategy(&self) -> CacheStrategy {
-		#[cfg(feature = "lru-cache")]
-		{
-			match &self.match_cache {
-				| Some(cache_mutex) => {
-					let cache_guard = cache_mutex.lock().unwrap();
-					CacheStrategy::Lru(cache_guard.cap())
-				}
-				| None => CacheStrategy::NoCache,
-			}
-		}
-		#[cfg(not(feature = "lru-cache"))]
-		{
-			CacheStrategy::NoCache
-		}
-	}
+    /// Get the cache strategy of this topic pattern.
+    pub fn cache_strategy(&self) -> CacheStrategy {
+        #[cfg(feature = "lru-cache")]
+        {
+            match &self.match_cache {
+                Some(cache_mutex) => {
+                    let cache_guard = cache_mutex.lock().unwrap();
+                    CacheStrategy::Lru(cache_guard.cap())
+                }
+                None => CacheStrategy::NoCache,
+            }
+        }
+        #[cfg(not(feature = "lru-cache"))]
+        {
+            CacheStrategy::NoCache
+        }
+    }
 
-	/// Returns the current parameter bindings, if any.
-	pub fn parameter_bindings(
-		&self,
-	) -> Option<&SmallVec<[(ArcStr, ArcStr); 4]>> {
-		self.parameter_bindings.as_ref()
-	}
+    /// Returns the current parameter bindings, if any.
+    pub fn parameter_bindings(&self) -> Option<&SmallVec<[(ArcStr, ArcStr); 4]>> {
+        self.parameter_bindings.as_ref()
+    }
 
-	/// Returns the bound value for a named parameter, if it exists.
-	pub fn get_bound_value(&self, param_name: Option<&str>) -> Option<&ArcStr> {
-		let name = param_name?; // Якщо None - одразу повертаємо None
-		self.parameter_bindings
-			.as_ref()?
-			.iter()
-			.find(|(binding_name, _)| binding_name == name)
-			.map(|(_, value)| value)
-	}
+    /// Returns the bound value for a named parameter, if it exists.
+    pub fn get_bound_value(&self, param_name: Option<&str>) -> Option<&ArcStr> {
+        let name = param_name?; // Якщо None - одразу повертаємо None
+        self.parameter_bindings
+            .as_ref()?
+            .iter()
+            .find(|(binding_name, _)| binding_name == name)
+            .map(|(_, value)| value)
+    }
 
-	#[cfg(all(test, feature = "router"))]
-	/// Creates a topic pattern from segments directly, useful for testing.
-	pub(crate) fn new_from_segments(
-		segments: &[TopicPatternItem],
-	) -> Result<Self, TopicPatternError> {
-		let topic_pattern = ArcStr::from(Self::to_template_pattern(segments));
-		let pattern = Self {
-			mqtt_topic_subscription: ArcStr::from(
-				Self::to_mqtt_subscription_pattern(segments),
-			),
-			template_pattern: topic_pattern.clone(),
-			segments: segments.to_vec(),
-			#[cfg(feature = "lru-cache")]
-			match_cache: None,
-			parameter_bindings: None,
-		};
-		if let Some(hash_pos) = segments
-			.iter()
-			.position(|s| matches!(*s, TopicPatternItem::Hash(_)))
-		{
-			if hash_pos != segments.len() - 1 {
-				return Err(TopicPatternError::hash_position(
-					topic_pattern.as_str(),
-				));
-			}
-		}
-		Ok(pattern)
-	}
+    #[cfg(all(test, feature = "router"))]
+    /// Creates a topic pattern from segments directly, useful for testing.
+    pub(crate) fn new_from_segments(
+        segments: &[TopicPatternItem],
+    ) -> Result<Self, TopicPatternError> {
+        let topic_pattern = ArcStr::from(Self::to_template_pattern(segments));
+        let pattern = Self {
+            mqtt_topic_subscription: ArcStr::from(Self::to_mqtt_subscription_pattern(segments)),
+            template_pattern: topic_pattern.clone(),
+            segments: segments.to_vec(),
+            #[cfg(feature = "lru-cache")]
+            match_cache: None,
+            parameter_bindings: None,
+        };
+        if let Some(hash_pos) = segments
+            .iter()
+            .position(|s| matches!(*s, TopicPatternItem::Hash(_)))
+        {
+            if hash_pos != segments.len() - 1 {
+                return Err(TopicPatternError::hash_position(topic_pattern.as_str()));
+            }
+        }
+        Ok(pattern)
+    }
 
-	/// Returns MQTT pattern with wildcards for broker subscription with bound parameters applied.
-	pub fn mqtt_pattern(&self) -> ArcStr {
-		match &self.parameter_bindings {
-			| Some(bindings) => {
-				let new_segments = self.apply_bindings_to_segments(bindings);
-				ArcStr::from(Self::to_mqtt_subscription_pattern(&new_segments))
-			}
-			| None => self.mqtt_topic_subscription.clone(),
-		}
-	}
+    /// Returns MQTT pattern with wildcards for broker subscription with bound parameters applied.
+    pub fn mqtt_pattern(&self) -> ArcStr {
+        match &self.parameter_bindings {
+            Some(bindings) => {
+                let new_segments = self.apply_bindings_to_segments(bindings);
+                ArcStr::from(Self::to_mqtt_subscription_pattern(&new_segments))
+            }
+            None => self.mqtt_topic_subscription.clone(),
+        }
+    }
 
-	/// Resolves bound parameters into concrete segments
-	///
-	/// Returns segments with bound parameters replaced by their values.
-	/// Unbound wildcards remain as wildcards.
-	pub fn resolve_bound_segments(&self) -> Vec<TopicPatternItem> {
-		if let Some(ref bindings) = self.parameter_bindings {
-			self.apply_bindings_to_segments(bindings)
-		} else {
-			self.segments.clone()
-		}
-	}
+    /// Resolves bound parameters into concrete segments
+    ///
+    /// Returns segments with bound parameters replaced by their values.
+    /// Unbound wildcards remain as wildcards.
+    pub fn resolve_bound_segments(&self) -> Vec<TopicPatternItem> {
+        if let Some(ref bindings) = self.parameter_bindings {
+            self.apply_bindings_to_segments(bindings)
+        } else {
+            self.segments.clone()
+        }
+    }
 
-	// Internal helper that applies bindings to segments
-	fn apply_bindings_to_segments(
-		&self,
-		bindings: &[(ArcStr, ArcStr)],
-	) -> Vec<TopicPatternItem> {
-		let mut new_segments = self.segments.clone();
+    // Internal helper that applies bindings to segments
+    fn apply_bindings_to_segments(&self, bindings: &[(ArcStr, ArcStr)]) -> Vec<TopicPatternItem> {
+        let mut new_segments = self.segments.clone();
 
-		for (param_name, value) in bindings {
-			if let Some(segment_pos) = new_segments.iter().position(|segment| {
+        for (param_name, value) in bindings {
+            if let Some(segment_pos) = new_segments.iter().position(|segment| {
                 matches!(segment, TopicPatternItem::Plus(Some(name)) if name == param_name)
             }) {
                 new_segments[segment_pos] = TopicPatternItem::Str(value.into());
@@ -275,340 +256,316 @@ impl TopicPatternPath {
 					"Parameter '{param_name}' not found in pattern"
 				);
             }
-		}
+        }
 
-		new_segments
-	}
+        new_segments
+    }
 
-	/// Returns original pattern with named parameters.
-	pub fn topic_pattern(&self) -> ArcStr {
-		self.template_pattern.clone()
-	}
+    /// Returns original pattern with named parameters.
+    pub fn topic_pattern(&self) -> ArcStr {
+        self.template_pattern.clone()
+    }
 
-	/// Returns true if pattern has no segments.
-	pub fn is_empty(&self) -> bool {
-		self.segments.is_empty()
-	}
+    /// Returns true if pattern has no segments.
+    pub fn is_empty(&self) -> bool {
+        self.segments.is_empty()
+    }
 
-	/// Returns true if pattern contains multi-level wildcard (#).
-	pub fn contains_hash(&self) -> bool {
-		self.segments
-			.last()
-			.is_some_and(|s| matches!(s, TopicPatternItem::Hash(_)))
-	}
+    /// Returns true if pattern contains multi-level wildcard (#).
+    pub fn contains_hash(&self) -> bool {
+        self.segments
+            .last()
+            .is_some_and(|s| matches!(s, TopicPatternItem::Hash(_)))
+    }
 
-	/// Returns iterator over pattern segments.
-	pub fn iter(&self) -> Iter<'_, TopicPatternItem> {
-		self.segments.iter()
-	}
+    /// Returns iterator over pattern segments.
+    pub fn iter(&self) -> Iter<'_, TopicPatternItem> {
+        self.segments.iter()
+    }
 
-	/// Returns number of segments in pattern.
-	pub fn len(&self) -> usize {
-		self.segments.len()
-	}
+    /// Returns number of segments in pattern.
+    pub fn len(&self) -> usize {
+        self.segments.len()
+    }
 
-	fn str_len(segments: &[TopicPatternItem]) -> usize {
-		if segments.is_empty() {
-			return 0;
-		}
-		(segments.len() - 1) + // slashes count
+    fn str_len(segments: &[TopicPatternItem]) -> usize {
+        if segments.is_empty() {
+            return 0;
+        }
+        (segments.len() - 1) + // slashes count
 		segments.iter().map(|s| s.as_str().len()).sum::<usize>()
-	}
+    }
 
-	/// Returns pattern segments as slice.
-	pub fn slice(&self) -> &[TopicPatternItem] {
-		&self.segments
-	}
+    /// Returns pattern segments as slice.
+    pub fn slice(&self) -> &[TopicPatternItem] {
+        &self.segments
+    }
 
-	/// Returns pattern segments for testing.
-	#[cfg(test)]
-	pub fn segments(&self) -> &Vec<TopicPatternItem> {
-		&self.segments
-	}
+    /// Returns pattern segments for testing.
+    #[cfg(test)]
+    pub fn segments(&self) -> &Vec<TopicPatternItem> {
+        &self.segments
+    }
 
-	/// Formats topic by substituting wildcards with provided parameters
-	pub fn format_topic(
-		&self,
-		params: &[&dyn Display],
-	) -> Result<String, TopicFormatError> {
-		let wildcard_count =
-			self.segments.iter().filter(|s| s.is_wildcard()).count();
+    /// Formats topic by substituting wildcards with provided parameters
+    pub fn format_topic(&self, params: &[&dyn Display]) -> Result<String, TopicFormatError> {
+        let wildcard_count = self.segments.iter().filter(|s| s.is_wildcard()).count();
 
-		if params.len() != wildcard_count {
-			return Err(TopicFormatError::ParameterCountMismatch {
-				expected: wildcard_count,
-				provided: params.len(),
-			});
-		}
+        if params.len() != wildcard_count {
+            return Err(TopicFormatError::ParameterCountMismatch {
+                expected: wildcard_count,
+                provided: params.len(),
+            });
+        }
 
-		let mut result = String::with_capacity(self.topic_pattern().len() + 10); //Est.
-		let mut param_index = 0;
+        let mut result = String::with_capacity(self.topic_pattern().len() + 10); //Est.
+        let mut param_index = 0;
 
-		for (i, segment) in self.segments.iter().enumerate() {
-			if i > 0 {
-				result.push('/');
-			}
+        for (i, segment) in self.segments.iter().enumerate() {
+            if i > 0 {
+                result.push('/');
+            }
 
-			match segment {
-				| TopicPatternItem::Str(s) => result.push_str(s),
-				| TopicPatternItem::Plus(_) => {
-					write!(result, "{}", params[param_index])?;
-					param_index += 1;
-				}
-				| TopicPatternItem::Hash(_) => {
-					return Err(TopicFormatError::HashWildcardNotSupported);
-				}
-			}
-		}
+            match segment {
+                TopicPatternItem::Str(s) => result.push_str(s),
+                TopicPatternItem::Plus(_) => {
+                    write!(result, "{}", params[param_index])?;
+                    param_index += 1;
+                }
+                TopicPatternItem::Hash(_) => {
+                    return Err(TopicFormatError::HashWildcardNotSupported);
+                }
+            }
+        }
 
-		Ok(result)
-	}
+        Ok(result)
+    }
 
-	fn to_mqtt_subscription_pattern(segments: &[TopicPatternItem]) -> String {
-		// Convert to MQTT wildcards: sensors/+/data
-		if segments.is_empty() {
-			return String::new();
-		}
-		let mut mqtt_topic = String::with_capacity(Self::str_len(segments));
-		segments.iter().enumerate().for_each(|(i, segment)| {
-			if i > 0 {
-				mqtt_topic.push('/');
-			}
-			mqtt_topic.push_str(segment.as_str());
-		});
-		mqtt_topic
-	}
+    fn to_mqtt_subscription_pattern(segments: &[TopicPatternItem]) -> String {
+        // Convert to MQTT wildcards: sensors/+/data
+        if segments.is_empty() {
+            return String::new();
+        }
+        let mut mqtt_topic = String::with_capacity(Self::str_len(segments));
+        segments.iter().enumerate().for_each(|(i, segment)| {
+            if i > 0 {
+                mqtt_topic.push('/');
+            }
+            mqtt_topic.push_str(segment.as_str());
+        });
+        mqtt_topic
+    }
 
-	#[cfg(all(test, feature = "router"))]
-	fn to_template_pattern(segments: &[TopicPatternItem]) -> String {
-		// Convert to named wildcards: sensors/{sensor_id}/data
-		if segments.is_empty() {
-			return String::new();
-		}
-		let mut mqtt_topic = String::new();
-		segments.iter().enumerate().for_each(|(i, segment)| {
-			if i > 0 {
-				mqtt_topic.push('/');
-			}
-			mqtt_topic.push_str(segment.as_wildcard().as_ref());
-		});
-		mqtt_topic
-	}
+    #[cfg(all(test, feature = "router"))]
+    fn to_template_pattern(segments: &[TopicPatternItem]) -> String {
+        // Convert to named wildcards: sensors/{sensor_id}/data
+        if segments.is_empty() {
+            return String::new();
+        }
+        let mut mqtt_topic = String::new();
+        segments.iter().enumerate().for_each(|(i, segment)| {
+            if i > 0 {
+                mqtt_topic.push('/');
+            }
+            mqtt_topic.push_str(segment.as_wildcard().as_ref());
+        });
+        mqtt_topic
+    }
 
-	/// Checks if the provided topic pattern is compatible with this one.
-	///
-	/// Static segments can differ, but wildcards must be identical in type,
-	/// order, and names (if named).
-	pub fn check_pattern_compatibility(
-		&self,
-		custom_topic: impl TryInto<TopicPatternPath, Error: Into<TopicPatternError>>,
-	) -> Result<Self, TopicPatternError> {
-		let candidate = custom_topic.try_into().map_err(Into::into)?;
-		// Validate wildcard structure compatibility
-		let self_wildcards =
-			self.segments.iter().filter(|item| item.is_wildcard());
-		let candidate_wildcards =
-			candidate.segments.iter().filter(|item| item.is_wildcard());
+    /// Checks if the provided topic pattern is compatible with this one.
+    ///
+    /// Static segments can differ, but wildcards must be identical in type,
+    /// order, and names (if named).
+    pub fn check_pattern_compatibility(
+        &self,
+        custom_topic: impl TryInto<TopicPatternPath, Error: Into<TopicPatternError>>,
+    ) -> Result<Self, TopicPatternError> {
+        let candidate = custom_topic.try_into().map_err(Into::into)?;
+        // Validate wildcard structure compatibility
+        let self_wildcards = self.segments.iter().filter(|item| item.is_wildcard());
+        let candidate_wildcards = candidate.segments.iter().filter(|item| item.is_wildcard());
 
-		if !self_wildcards.eq(candidate_wildcards) {
-			return Err(TopicPatternError::pattern_mismatch(
-				self.template_pattern.as_str(),
-				candidate.template_pattern.as_str(),
-			));
-		}
+        if !self_wildcards.eq(candidate_wildcards) {
+            return Err(TopicPatternError::pattern_mismatch(
+                self.template_pattern.as_str(),
+                candidate.template_pattern.as_str(),
+            ));
+        }
 
-		Ok(candidate)
-	}
+        Ok(candidate)
+    }
 
-	/// Create new pattern with different cache strategy
-	pub fn with_cache_strategy(&self, new_cache: CacheStrategy) -> Self {
-		let mut new_pattern =
-			Self::new_from_string(self.template_pattern.clone(), new_cache)
-				.expect("Pattern already validated");
-		new_pattern.parameter_bindings = self.parameter_bindings.clone();
-		new_pattern
-	}
+    /// Create new pattern with different cache strategy
+    pub fn with_cache_strategy(&self, new_cache: CacheStrategy) -> Self {
+        let mut new_pattern = Self::new_from_string(self.template_pattern.clone(), new_cache)
+            .expect("Pattern already validated");
+        new_pattern.parameter_bindings = self.parameter_bindings.clone();
+        new_pattern
+    }
 
-	/// Add value for topic wildcard parameter
-	pub fn bind_parameter(
-		mut self,
-		param_name: impl Into<ArcStr>,
-		value: impl Into<ArcStr>,
-	) -> Result<Self, TopicPatternError> {
-		let param_name_arc = param_name.into();
+    /// Add value for topic wildcard parameter
+    pub fn bind_parameter(
+        mut self,
+        param_name: impl Into<ArcStr>,
+        value: impl Into<ArcStr>,
+    ) -> Result<Self, TopicPatternError> {
+        let param_name_arc = param_name.into();
 
-		let param_exists = self.segments.iter().any(|segment| {
+        let param_exists = self.segments.iter().any(|segment| {
 			matches!(segment, TopicPatternItem::Plus(Some(name)) if name.as_str() == param_name_arc.as_str())
 		});
-		if !param_exists {
-			return Err(TopicPatternError::wildcard_usage(format!(
-				"Parameter '{param_name_arc}' not found in pattern '{}'",
-				self.topic_pattern()
-			)));
-		}
+        if !param_exists {
+            return Err(TopicPatternError::wildcard_usage(format!(
+                "Parameter '{param_name_arc}' not found in pattern '{}'",
+                self.topic_pattern()
+            )));
+        }
 
-		let value_arc = value.into();
+        let value_arc = value.into();
 
-		let bindings =
-			self.parameter_bindings.get_or_insert_with(SmallVec::new);
+        let bindings = self.parameter_bindings.get_or_insert_with(SmallVec::new);
 
-		if let Some(pos) =
-			bindings.iter().position(|(k, _)| k == &param_name_arc)
-		{
-			bindings[pos].1 = value_arc;
-		} else {
-			bindings.push((param_name_arc, value_arc));
-		}
+        if let Some(pos) = bindings.iter().position(|(k, _)| k == &param_name_arc) {
+            bindings[pos].1 = value_arc;
+        } else {
+            bindings.push((param_name_arc, value_arc));
+        }
 
-		Ok(self)
-	}
+        Ok(self)
+    }
 
-	/// Matches a topic against this pattern, extracting parameters.
-	///
-	/// Takes an `Arc<TopicPath>` so the topic can be shared cheaply: when
-	/// matching ONE topic against MANY patterns (the hot path), build the
-	/// `Arc<TopicPath>` once and pass `Arc::clone(&topic)` to each pattern to
-	/// avoid re-parsing and re-allocating per match. For a single one-off match
-	/// from a string, [`try_match_str`](Self::try_match_str) is more convenient.
-	pub fn try_match(
-		&self,
-		topic: Arc<TopicPath>,
-	) -> Result<Arc<TopicMatch>, TopicMatchError> {
-		#[cfg(feature = "lru-cache")]
-		{
-			match &self.match_cache {
-				| Some(cache_mutex) => {
-					{
-						let mut match_cache = cache_mutex.lock().unwrap();
-						if let Some(cached_match) = match_cache.get(&topic.path)
-						{
-							return Ok(cached_match.clone());
-						}
-					}
+    /// Matches a topic against this pattern, extracting parameters.
+    ///
+    /// Takes an `Arc<TopicPath>` so the topic can be shared cheaply: when
+    /// matching ONE topic against MANY patterns (the hot path), build the
+    /// `Arc<TopicPath>` once and pass `Arc::clone(&topic)` to each pattern to
+    /// avoid re-parsing and re-allocating per match. For a single one-off match
+    /// from a string, [`try_match_str`](Self::try_match_str) is more convenient.
+    pub fn try_match(&self, topic: Arc<TopicPath>) -> Result<Arc<TopicMatch>, TopicMatchError> {
+        #[cfg(feature = "lru-cache")]
+        {
+            match &self.match_cache {
+                Some(cache_mutex) => {
+                    {
+                        let mut match_cache = cache_mutex.lock().unwrap();
+                        if let Some(cached_match) = match_cache.get(&topic.path) {
+                            return Ok(cached_match.clone());
+                        }
+                    }
 
-					let topic_match = self.try_match_internal(topic.clone())?;
-					let topic_match_arc = Arc::new(topic_match);
-					{
-						let mut match_cache = cache_mutex.lock().unwrap();
-						match_cache.put(
-							topic.path.clone(),
-							Arc::clone(&topic_match_arc),
-						);
-					}
-					Ok(topic_match_arc)
-				}
-				| None => {
-					let topic_match = self.try_match_internal(topic)?;
-					Ok(Arc::new(topic_match))
-				}
-			}
-		}
-		#[cfg(not(feature = "lru-cache"))]
-		{
-			let topic_match = self.try_match_internal(topic)?;
-			Ok(Arc::new(topic_match))
-		}
-	}
+                    let topic_match = self.try_match_internal(topic.clone())?;
+                    let topic_match_arc = Arc::new(topic_match);
+                    {
+                        let mut match_cache = cache_mutex.lock().unwrap();
+                        match_cache.put(topic.path.clone(), Arc::clone(&topic_match_arc));
+                    }
+                    Ok(topic_match_arc)
+                }
+                None => {
+                    let topic_match = self.try_match_internal(topic)?;
+                    Ok(Arc::new(topic_match))
+                }
+            }
+        }
+        #[cfg(not(feature = "lru-cache"))]
+        {
+            let topic_match = self.try_match_internal(topic)?;
+            Ok(Arc::new(topic_match))
+        }
+    }
 
-	/// Convenience wrapper around [`try_match`](Self::try_match) for one-off
-	/// matches: it builds the [`TopicPath`] and wraps it in an `Arc` for you.
-	///
-	/// Prefer [`try_match`](Self::try_match) on the hot path (one topic, many
-	/// patterns): calling this in a loop re-parses and re-allocates the topic
-	/// every time.
-	pub fn try_match_str(
-		&self,
-		topic: impl Into<ArcStr>,
-	) -> Result<Arc<TopicMatch>, TopicMatchError> {
-		self.try_match(Arc::new(TopicPath::new(topic)))
-	}
+    /// Convenience wrapper around [`try_match`](Self::try_match) for one-off
+    /// matches: it builds the [`TopicPath`] and wraps it in an `Arc` for you.
+    ///
+    /// Prefer [`try_match`](Self::try_match) on the hot path (one topic, many
+    /// patterns): calling this in a loop re-parses and re-allocates the topic
+    /// every time.
+    pub fn try_match_str(
+        &self,
+        topic: impl Into<ArcStr>,
+    ) -> Result<Arc<TopicMatch>, TopicMatchError> {
+        self.try_match(Arc::new(TopicPath::new(topic)))
+    }
 
-	#[allow(clippy::missing_docs_in_private_items)]
-	fn try_match_internal(
-		&self,
-		topic: Arc<TopicPath>,
-	) -> Result<TopicMatch, TopicMatchError> {
-		let mut topic_index = 0;
-		let mut params = SmallVec::new();
-		let mut named_params = SmallVec::new();
-		for (i, pattern_segment) in self.iter().enumerate() {
-			match pattern_segment {
-				| TopicPatternItem::Str(expected) => {
-					if topic_index >= topic.segments.len() {
-						return Err(TopicMatchError::UnexpectedEndOfTopic);
-					}
-					if topic.segments[topic_index] != *expected {
-						return Err(TopicMatchError::SegmentMismatch {
-							expected: expected.to_string(),
-							found: topic.segments[topic_index].to_string(),
-							position: topic_index,
-						});
-					}
-					topic_index += 1;
-				}
-				| TopicPatternItem::Plus(opt_name) => {
-					if topic_index >= topic.segments.len() {
-						return Err(TopicMatchError::UnexpectedEndOfTopic);
-					}
-					let param_range = topic_index .. topic_index + 1;
-					params.push(param_range.clone());
-					topic_index += 1;
-					if let Some(name) = opt_name {
-						named_params.push((name.clone(), param_range));
-					}
-				}
-				| TopicPatternItem::Hash(opt_name) => {
-					let param_range = topic_index .. topic.segments.len();
-					params.push(param_range.clone());
-					if let Some(name) = opt_name {
-						named_params.push((name.clone(), param_range));
-					}
-					if i < self.len() - 1 {
-						return Err(TopicMatchError::UnexpectedHashSegment);
-					}
-					return Ok(TopicMatch::from_match_result(
-						topic,
-						params,
-						named_params,
-					));
-				}
-			}
-		}
-		if topic_index < topic.segments.len() {
-			return Err(TopicMatchError::UnexpectedEndOfPattern);
-		}
-		Ok(TopicMatch::from_match_result(topic, params, named_params))
-	}
+    #[allow(clippy::missing_docs_in_private_items)]
+    fn try_match_internal(&self, topic: Arc<TopicPath>) -> Result<TopicMatch, TopicMatchError> {
+        let mut topic_index = 0;
+        let mut params = SmallVec::new();
+        let mut named_params = SmallVec::new();
+        for (i, pattern_segment) in self.iter().enumerate() {
+            match pattern_segment {
+                TopicPatternItem::Str(expected) => {
+                    if topic_index >= topic.segments.len() {
+                        return Err(TopicMatchError::UnexpectedEndOfTopic);
+                    }
+                    if topic.segments[topic_index] != *expected {
+                        return Err(TopicMatchError::SegmentMismatch {
+                            expected: expected.to_string(),
+                            found: topic.segments[topic_index].to_string(),
+                            position: topic_index,
+                        });
+                    }
+                    topic_index += 1;
+                }
+                TopicPatternItem::Plus(opt_name) => {
+                    if topic_index >= topic.segments.len() {
+                        return Err(TopicMatchError::UnexpectedEndOfTopic);
+                    }
+                    let param_range = topic_index..topic_index + 1;
+                    params.push(param_range.clone());
+                    topic_index += 1;
+                    if let Some(name) = opt_name {
+                        named_params.push((name.clone(), param_range));
+                    }
+                }
+                TopicPatternItem::Hash(opt_name) => {
+                    let param_range = topic_index..topic.segments.len();
+                    params.push(param_range.clone());
+                    if let Some(name) = opt_name {
+                        named_params.push((name.clone(), param_range));
+                    }
+                    if i < self.len() - 1 {
+                        return Err(TopicMatchError::UnexpectedHashSegment);
+                    }
+                    return Ok(TopicMatch::from_match_result(topic, params, named_params));
+                }
+            }
+        }
+        if topic_index < topic.segments.len() {
+            return Err(TopicMatchError::UnexpectedEndOfPattern);
+        }
+        Ok(TopicMatch::from_match_result(topic, params, named_params))
+    }
 }
 
 impl std::fmt::Display for TopicPatternPath {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		// Convert segments to strings and join them with "/"
-		let path = self.topic_pattern();
-		write!(f, "{path}")
-	}
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Convert segments to strings and join them with "/"
+        let path = self.topic_pattern();
+        write!(f, "{path}")
+    }
 }
 
 impl TryFrom<String> for TopicPatternPath {
-	type Error = TopicPatternError;
+    type Error = TopicPatternError;
 
-	fn try_from(value: String) -> Result<Self, Self::Error> {
-		Self::new_from_string(value, CacheStrategy::NoCache)
-	}
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::new_from_string(value, CacheStrategy::NoCache)
+    }
 }
 
 impl TryFrom<&str> for TopicPatternPath {
-	type Error = TopicPatternError;
+    type Error = TopicPatternError;
 
-	fn try_from(value: &str) -> Result<Self, Self::Error> {
-		Self::new_from_string(value, CacheStrategy::NoCache)
-	}
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::new_from_string(value, CacheStrategy::NoCache)
+    }
 }
 
 impl TryFrom<ArcStr> for TopicPatternPath {
-	type Error = TopicPatternError;
+    type Error = TopicPatternError;
 
-	fn try_from(value: ArcStr) -> Result<Self, Self::Error> {
-		Self::new_from_string(value, CacheStrategy::NoCache)
-	}
+    fn try_from(value: ArcStr) -> Result<Self, Self::Error> {
+        Self::new_from_string(value, CacheStrategy::NoCache)
+    }
 }

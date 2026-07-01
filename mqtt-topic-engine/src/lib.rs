@@ -37,9 +37,9 @@ mod topic_pattern_path_tests;
 // Re-export main types for convenience
 pub use cache_strategy::CacheStrategy;
 // Router-specific re-exports
+pub use error::{limits, validation, PatternResult, TopicError, TopicResult};
 #[cfg(feature = "router")]
 pub use error::{MatcherResult, RouterResult};
-pub use error::{PatternResult, TopicError, TopicResult, limits, validation};
 pub use qos::QoS;
 pub use topic_match::{TopicMatch, TopicPath};
 #[cfg(feature = "router")]

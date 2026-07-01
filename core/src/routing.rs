@@ -14,8 +14,7 @@ pub use error::SubscriptionError;
 pub(crate) use subscriber::Subscriber;
 pub use subscription_manager::SubscriptionConfig;
 pub(crate) use subscription_manager::{
-	SubscriptionManagerActor, SubscriptionManagerController,
-	SubscriptionManagerHandler,
+    SubscriptionManagerActor, SubscriptionManagerController, SubscriptionManagerHandler,
 };
 
 // Re-export for internal crate usage only
