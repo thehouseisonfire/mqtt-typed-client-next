@@ -2,7 +2,7 @@
 
 # MQTT Typed Client
 
-A **type-safe async MQTT client** built on top of rumqttc
+A **type-safe async MQTT client** built on top of the protocol-scoped rumqttc-next crates
 
 **Automatic topic routing and subscription management** with **compile-time guarantees**
 
@@ -43,39 +43,43 @@ client.sensor_topic().publish("kitchen", 42, &reading).await?;
 - **Topics as types** — named parameters parsed/validated at compile time
 - **Typed parameters** — `{device_id}` can be `u32`, `Uuid`, or your own enum, not just `String`
 - **Automatic routing** — one broker stream fanned out to typed subscribers, no manual `if topic.starts_with(...)`
-- **Pluggable serialization** — Bincode, JSON, MessagePack, CBOR and more behind one trait
+- **Pluggable serialization** — Wincode, JSON, MessagePack, CBOR and more behind one trait
 - **Reconnect that keeps subscriptions** — resubscribe on reconnect, graceful shutdown, LWT
 
-**MSRV**: Rust 1.85.1 (driven by default `bincode` serializer; can be lowered with alternative serializers)
+**MSRV**: Rust 1.89.0 (driven by the latest `wincode` serializer)
 
 ## Quick Start
 
-Add the crate and the few deps the derive example needs:
+Add the crate and the few deps the derive example needs. Select exactly one
+rumqttc backend feature:
 ```toml
 [dependencies]
-mqtt-typed-client = "0.2.0"
+mqtt-typed-client = { package = "mqtt-typed-client-next", version = "0.2.0", default-features = false, features = ["rumqttc-v5", "macros", "wincode", "json"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
-bincode = "2"
+wincode = { version = "0.5.5", features = ["derive"] }
 ```
 
-> `serde` is needed for the `Serialize`/`Deserialize` derives and `bincode` for the
-> default serializer's `Encode`/`Decode`. Switch serializers (e.g. `json`) and the
+Use `rumqttc-v4` instead of `rumqttc-v5` when targeting MQTT 3.1.1 through
+`rumqttc-v4-next`. The backend features are mutually exclusive.
+
+> `serde` is needed for the `Serialize`/`Deserialize` derives and `wincode` for the
+> default serializer's `SchemaWrite`/`SchemaRead`. Switch serializers (e.g. `json`) and the
 > derive requirements change accordingly.
 
 ```rust,no_run
 use mqtt_typed_client::prelude::*;
 use serde::{Deserialize, Serialize};
-use bincode::{Encode, Decode};
+use wincode::{SchemaWrite, SchemaRead};
 
-#[derive(Serialize, Deserialize, Encode, Decode, Debug)]
+#[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug)]
 enum SensorStatus {
     Active,
     Inactive,
     Maintenance,
 }
 
-#[derive(Serialize, Deserialize, Encode, Decode, Debug)]
+#[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug)]
 struct SensorReading {
     temperature: f64,
     status: SensorStatus,    // enum field
@@ -93,7 +97,7 @@ struct SensorTopic {
 #[tokio::main]
 async fn main() -> Result<()> {
     // Connect to MQTT broker
-    let (client, connection) = MqttClient::<BincodeSerializer>::connect(
+    let (client, connection) = MqttClient::<WincodeSerializer>::connect(
         "mqtt://broker.hivemq.com:1883"
     ).await?;
 
@@ -156,7 +160,7 @@ cargo run --example 000_hello_world
 
 Multiple serialization formats are supported via feature flags:
 
-- `bincode` - Binary serialization (default, most efficient)
+- `wincode` - Binary serialization (default, most efficient)
 - `json` - JSON serialization (default, human-readable)
 - `messagepack` - MessagePack binary format
 - `cbor` - CBOR binary format
@@ -266,9 +270,9 @@ For cases where you need direct control without macros:
 ```rust,no_run
 use mqtt_typed_client::prelude::*;
 use serde::{Deserialize, Serialize};
-use bincode::{Encode, Decode};
+use wincode::{SchemaWrite, SchemaRead};
 
-#[derive(Serialize, Deserialize, Encode, Decode, Debug)]
+#[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug)]
 struct SensorData {
     temperature: f64,
     humidity: f64,
@@ -276,7 +280,7 @@ struct SensorData {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let (client, connection) = MqttClient::<BincodeSerializer>::connect(
+    let (client, connection) = MqttClient::<WincodeSerializer>::connect(
         "mqtt://broker.hivemq.com:1883"
     ).await?;
 
@@ -342,15 +346,17 @@ tokio::select! {
 ## Alternatives
 
 - **[rumqttc](https://github.com/bytebeamio/rumqtt)** — the async MQTT client this
-  crate builds on. Use it directly when you want full manual control over topics,
-  serialization, and the event loop.
+  crate builds on through `rumqttc-v4-next` or `rumqttc-v5-next`. Use it directly
+  when you want full manual control over topics, serialization, and the event
+  loop.
 - **[paho-mqtt](https://crates.io/crates/paho-mqtt)** — Rust bindings to the Eclipse
   Paho C client; a fit when you need that mature C library or its feature set.
 - **[ntex-mqtt](https://crates.io/crates/ntex-mqtt)** — MQTT client and server built on
   the ntex framework; worth a look if you're already in that ecosystem or need a broker.
 
-Reach for `mqtt-typed-client` when you want typed topic routing and automatic
-(de)serialization on top of rumqttc, without hand-writing the dispatch layer.
+Reach for `mqtt-typed-client-next` when you want typed topic routing and
+automatic (de)serialization on top of `rumqttc-v4-next` or `rumqttc-v5-next`,
+without hand-writing the dispatch layer.
 
 ## License
 

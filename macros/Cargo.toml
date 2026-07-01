@@ -23,8 +23,8 @@ rumqttc-v5 = ["mqtt-typed-client-core/rumqttc-v5"]
 proc-macro2 = "1.0.95"
 quote = "1.0.40"
 syn = "2.0.103"
-mqtt-typed-client-core = { package = "mqtt-typed-client-core-next", path = "../core", version = "0.2.0" }
+mqtt-typed-client-core = { package = "mqtt-typed-client-core-next", path = "../core", version = "0.2.0", default-features = false }
 
 [dev-dependencies]
 tokio = "1.45.1"
-mqtt-typed-client-core = { package = "mqtt-typed-client-core-next", path = "../core", version = "0.2.0" }
+mqtt-typed-client-core = { package = "mqtt-typed-client-core-next", path = "../core", version = "0.2.0", default-features = false }

@@ -226,9 +226,8 @@ impl<S> MqttClientConfig<S> {
     ///
     /// # Example
     /// ```rust
-    /// # use mqtt_typed_client_core::{MqttClientConfig, BincodeSerializer, TypedLastWill};
-    /// # use crate::rumqttc::QoS;
-    /// let mut config = MqttClientConfig::<BincodeSerializer>::new("client", "broker", 1883);
+    /// # use mqtt_typed_client_core::{MqttClientConfig, QoS, WincodeSerializer, TypedLastWill};
+    /// let mut config = MqttClientConfig::<WincodeSerializer>::new("client", "broker", 1883);
     ///
     /// // Create last will manually (in real code, use generated methods from #[mqtt_topic])
     /// let last_will = TypedLastWill {

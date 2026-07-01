@@ -1,7 +1,7 @@
 //! # MQTT Typed Client
 //!
-//! Local fork of `mqtt-typed-client` patched for this repository's current
-//! `rumqttc-v4-next` API.
+//! Local fork of `mqtt-typed-client` patched for the protocol-scoped
+//! `rumqttc-v4-next` and `rumqttc-v5-next` crates.
 
 #[cfg(all(feature = "rumqttc-v4", feature = "rumqttc-v5"))]
 compile_error!("features `rumqttc-v4` and `rumqttc-v5` are mutually exclusive");
@@ -32,9 +32,11 @@ pub mod prelude {
     //! Convenient imports for common use cases.
 
     pub use mqtt_typed_client_core::structured::*;
+    #[cfg(feature = "wincode")]
+    pub use mqtt_typed_client_core::WincodeSerializer;
     pub use mqtt_typed_client_core::{
-        BincodeSerializer, ClientSettings, MessageSerializer, MqttClient, MqttClientConfig,
-        MqttClientError, MqttConnection, MqttOptions, MqttPublisher, MqttSubscriber, QoS, Result,
+        ClientSettings, MessageSerializer, MqttClient, MqttClientConfig, MqttClientError,
+        MqttConnection, MqttOptions, MqttPublisher, MqttSubscriber, QoS, Result,
         SubscriptionBuilder, Transport, TypedLastWill,
     };
     #[cfg(feature = "macros")]

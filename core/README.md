@@ -15,16 +15,16 @@ This crate is typically used through the main `mqtt-typed-client` crate which pr
 For direct usage:
 
 ```rust
-use mqtt_typed_client_core::{MqttClient, BincodeSerializer};
+use mqtt_typed_client_core::{MqttClient, WincodeSerializer};
 
-let (client, connection) = MqttClient::<BincodeSerializer>::connect("mqtt://broker.example.com").await?;
+let (client, connection) = MqttClient::<WincodeSerializer>::connect("mqtt://broker.example.com").await?;
 ```
 
 See the main [mqtt-typed-client](https://crates.io/crates/mqtt-typed-client) crate for complete examples and documentation.
 
 ## Features
 
-- `bincode-serializer` - Bincode message serialization (default)
+- `wincode-serializer` - Wincode message serialization (default)
 - `json` - JSON message serialization (default)
 - `messagepack` - MessagePack serialization
 - `cbor` - CBOR serialization

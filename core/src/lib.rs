@@ -11,16 +11,16 @@
 //! - **Graceful Shutdown**: Proper resource cleanup and connection termination
 //! - **Async/Await Support**: Built on top of `tokio` for async operations
 //! - **Error Handling**: Comprehensive error types with retry logic
-//! - **Message Serialization**: Pluggable serialization (Bincode included)
+//! - **Message Serialization**: Pluggable serialization (Wincode included)
 //!
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use mqtt_typed_client_core::{MqttClient, MqttClientConfig, BincodeSerializer};
+//! use mqtt_typed_client_core::{MqttClient, MqttClientConfig, WincodeSerializer};
 //! use serde::{Deserialize, Serialize};
-//! use bincode::{Encode, Decode};
+//! use wincode::{SchemaWrite, SchemaRead};
 //!
-//! #[derive(Serialize, Deserialize, Encode, Decode, Debug)]
+//! #[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug)]
 //! struct SensorData {
 //!     temperature: f64,
 //!     humidity: f64,
@@ -29,17 +29,17 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Simple connection using URL
-//!     let (client, connection) = MqttClient::<BincodeSerializer>::connect(
+//!     let (client, connection) = MqttClient::<WincodeSerializer>::connect(
 //!         "mqtt://broker.hivemq.com:1883?client_id=my_client"
 //!     ).await?;
 //!
 //!     // Advanced configuration
 //!     let mut config = MqttClientConfig::new("my_client", "broker.hivemq.com", 1883);
-//!     config.connection.set_keep_alive(std::time::Duration::from_secs(30));
+//!     config.connection.set_keep_alive(30);
 //!     config.connection.set_clean_session(true);
 //!     config.settings.topic_cache_size = 500;
 //!     
-//!     let (client, connection) = MqttClient::<BincodeSerializer>::connect_with_config(config).await?;
+//!     let (client, connection) = MqttClient::<WincodeSerializer>::connect_with_config(config).await?;
 //!
 //!     // Create a typed publisher
 //!     let publisher = client.get_publisher::<SensorData>("sensors/temperature")?;
@@ -139,8 +139,8 @@ pub use client::{
 pub use client::{MqttPublisher, MqttSubscriber, SubscriptionBuilder};
 pub use connection::MqttConnection;
 // Message serialization
-#[cfg(feature = "bincode-serializer")]
-pub use message_serializer::BincodeSerializer;
+#[cfg(feature = "wincode-serializer")]
+pub use message_serializer::WincodeSerializer;
 #[cfg(feature = "cbor")]
 pub use message_serializer::CborSerializer;
 #[cfg(feature = "flexbuffers")]
@@ -190,8 +190,8 @@ pub type Result<T> = std::result::Result<T, MqttClientError>;
 /// ```
 pub mod prelude {
 
-	#[cfg(feature = "bincode-serializer")]
-	pub use crate::BincodeSerializer;
+	#[cfg(feature = "wincode-serializer")]
+	pub use crate::WincodeSerializer;
 	#[cfg(feature = "cbor")]
 	pub use crate::CborSerializer;
 	#[cfg(feature = "flexbuffers")]

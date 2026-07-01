@@ -2,8 +2,8 @@
 
 use std::fmt::Debug;
 
-#[cfg(feature = "bincode-serializer")]
-use bincode::{Decode, Encode};
+#[cfg(feature = "wincode-serializer")]
+use wincode::{SchemaRead, SchemaWrite, config::DefaultConfig};
 // Used by the serde-based serializers; unused under `--no-default-features`.
 #[cfg(any(
 	feature = "json",
@@ -32,43 +32,39 @@ pub trait MessageSerializer<T>:
 	fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError>;
 }
 
-/// Default serializer using bincode format.
+/// Default serializer using wincode format.
 ///
-/// Requires types to implement `bincode::Encode` and `bincode::Decode`.
+/// Requires types to implement `wincode::SchemaWrite` and `wincode::SchemaRead`.
 ///
-/// Available when the `bincode-serializer` feature is enabled (default).
-#[cfg(feature = "bincode-serializer")]
+/// Available when the `wincode-serializer` feature is enabled (default).
+#[cfg(feature = "wincode-serializer")]
 #[derive(Clone, Default)]
-pub struct BincodeSerializer {
-	config: bincode::config::Configuration,
-}
+pub struct WincodeSerializer;
 
-#[cfg(feature = "bincode-serializer")]
-impl BincodeSerializer {
+#[cfg(feature = "wincode-serializer")]
+impl WincodeSerializer {
 	/// Creates a new serializer with default configuration.
 	pub fn new() -> Self {
-		Self::default()
-	}
-
-	/// Creates a serializer with custom bincode configuration.
-	pub fn with_config(config: bincode::config::Configuration) -> Self {
-		Self { config }
+		Self
 	}
 }
 
-#[cfg(feature = "bincode-serializer")]
-impl<T> MessageSerializer<T> for BincodeSerializer
-where T: Encode + Decode<()> + 'static
+#[cfg(feature = "wincode-serializer")]
+impl<T> MessageSerializer<T> for WincodeSerializer
+where
+	T: SchemaWrite<DefaultConfig, Src = T>
+		+ for<'de> SchemaRead<'de, DefaultConfig, Dst = T>
+		+ 'static,
 {
-	type SerializeError = bincode::error::EncodeError;
-	type DeserializeError = bincode::error::DecodeError;
+	type SerializeError = wincode::WriteError;
+	type DeserializeError = wincode::ReadError;
 
 	fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
-		bincode::encode_to_vec(data, self.config)
+		wincode::serialize(data)
 	}
 
 	fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
-		bincode::decode_from_slice(bytes, self.config).map(|(value, _)| value)
+		wincode::deserialize_exact(bytes)
 	}
 }
 
@@ -229,8 +225,8 @@ impl ProtobufSerializer {
 impl<T> MessageSerializer<T> for ProtobufSerializer
 where T: prost::Message + Default + 'static
 {
-	type SerializeError = prost::EncodeError;
-	type DeserializeError = prost::DecodeError;
+	type SerializeError = prost::SchemaWriteError;
+	type DeserializeError = prost::SchemaReadError;
 
 	fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
 		let mut buf = Vec::new();
@@ -324,7 +320,7 @@ mod tests {
 	// Helper exists only when at least one covered serializer is enabled, so a
 	// `--no-default-features` build (no serializer) does not see a dead fn.
 	#[cfg(any(
-		feature = "bincode-serializer",
+		feature = "wincode-serializer",
 		feature = "json",
 		feature = "messagepack",
 		feature = "cbor",
@@ -377,19 +373,19 @@ mod tests {
 		}
 	}
 
-	#[cfg(feature = "bincode-serializer")]
+	#[cfg(feature = "wincode-serializer")]
 	#[test]
-	fn bincode_round_trip() {
-		#[derive(bincode::Encode, bincode::Decode, Debug, PartialEq)]
-		struct BincodeMsg {
+	fn wincode_round_trip() {
+		#[derive(wincode::SchemaWrite, wincode::SchemaRead, Debug, PartialEq)]
+		struct WincodeMsg {
 			text: String,
 			id: u32,
 		}
-		let msg = BincodeMsg {
+		let msg = WincodeMsg {
 			text: "round-trip".to_string(),
 			id: 42,
 		};
-		round_trip(&super::BincodeSerializer::new(), &msg);
+		round_trip(&super::WincodeSerializer::new(), &msg);
 	}
 
 	#[cfg(feature = "json")]

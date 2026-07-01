@@ -1,5 +1,5 @@
 [package]
-name = "mqtt-topic-engine"
+name = "mqtt-topic-engine-next"
 version = "0.1.1"
 edition = "2021"
 rust-version = "1.82.0"
@@ -11,6 +11,9 @@ keywords = ["mqtt", "topic", "pattern", "matching", "routing"]
 categories = ["network-programming", "parser-implementations"]
 authors = ["Artem Holovskyi <artem.holovskyi@gmail.com>"]
 readme = "README.md"
+
+[lib]
+name = "mqtt_topic_engine"
 
 # docs.rs: document the pure-Rust interop features. paho-mqtt is deliberately
 # EXCLUDED — it links a native C library that the docs.rs builder lacks, so

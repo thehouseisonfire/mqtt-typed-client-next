@@ -300,25 +300,25 @@ impl<F> MqttClient<F> {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use mqtt_typed_client_core::{MqttClient, BincodeSerializer, JsonSerializer};
+    /// use mqtt_typed_client_core::{MqttClient, WincodeSerializer, JsonSerializer};
     /// use serde::{Deserialize, Serialize};
-    /// use bincode::{Encode, Decode};
+    /// use wincode::{SchemaWrite, SchemaRead};
     ///
-    /// #[derive(Serialize, Deserialize, Encode, Decode)]
+    /// #[derive(Serialize, Deserialize, SchemaWrite, SchemaRead)]
     /// struct LegacyData { value: f64 }
     ///
-    /// #[derive(Serialize, Deserialize, Encode, Decode)]
+    /// #[derive(Serialize, Deserialize, SchemaWrite, SchemaRead)]
     /// struct ModernData { value: f64 }
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// // Connect with default Bincode serializer
-    /// let (client, connection) = MqttClient::<BincodeSerializer>::connect("mqtt://localhost").await?;
+    /// // Connect with default Wincode serializer
+    /// let (client, connection) = MqttClient::<WincodeSerializer>::connect("mqtt://localhost").await?;
     ///
     /// // Use JSON serializer for legacy topics
     /// let json_client = client.clone_with_serializer::<JsonSerializer>();
     /// let legacy_sub = json_client.subscribe::<LegacyData>("legacy/sensors/+").await?;
     ///
-    /// // Original client with Bincode still usable
+    /// // Original client with Wincode still usable
     /// let modern_sub = client.subscribe::<ModernData>("v2/sensors/+").await?;
     /// # Ok(())
     /// # }
@@ -332,9 +332,7 @@ impl<F> MqttClient<F> {
 
     /// Clone client with a custom-configured serializer instance.
     ///
-    /// Use this method when you need non-default serializer configuration,
-    /// such as custom encoding settings for Bincode or other serializers
-    /// that support configuration.
+    /// Use this method when you need a serializer instance with custom state.
     ///
     /// This is a lightweight operation - the underlying MQTT connection
     /// and subscription manager are shared between instances.
@@ -346,23 +344,17 @@ impl<F> MqttClient<F> {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use mqtt_typed_client_core::{MqttClient, BincodeSerializer};
+    /// use mqtt_typed_client_core::{MqttClient, JsonSerializer};
     /// use serde::{Deserialize, Serialize};
-    /// use bincode::{Encode, Decode};
     ///
-    /// #[derive(Serialize, Deserialize, Encode, Decode)]
+    /// #[derive(Serialize, Deserialize)]
     /// struct Data { value: f64 }
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let (client, connection) = MqttClient::<BincodeSerializer>::connect("mqtt://localhost").await?;
-    ///
-    /// // Create custom Bincode configuration
-    /// let custom_config = bincode::config::standard()
-    ///     .with_little_endian();
-    /// let custom_bincode = BincodeSerializer::with_config(custom_config);
+    /// let (client, connection) = MqttClient::<JsonSerializer>::connect("mqtt://localhost").await?;
     ///
     /// // Use custom-configured serializer
-    /// let custom_client = client.clone_with_custom_serializer(custom_bincode);
+    /// let custom_client = client.clone_with_custom_serializer(JsonSerializer::new());
     /// let publisher = custom_client.get_publisher::<Data>("topic/with/custom/encoding")?;
     /// # Ok(())
     /// # }

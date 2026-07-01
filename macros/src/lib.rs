@@ -244,7 +244,7 @@ use syn::{LitStr, parse::Parser, parse_macro_input};
 /// # use mqtt_typed_client::{JsonSerializer, MessagePackSerializer};
 /// # use serde::{Serialize, Deserialize};
 ///
-/// // Modern messages use default client serializer (e.g., Bincode)
+/// // Modern messages use default client serializer (e.g., Wincode)
 /// #[mqtt_topic("v2/sensors/{id}/data")]
 /// struct ModernSensor {
 ///     id: u32,
