@@ -228,8 +228,8 @@ impl<T> MessageSerializer<T> for ProtobufSerializer
 where
     T: prost::Message + Default + 'static,
 {
-    type SerializeError = prost::SchemaWriteError;
-    type DeserializeError = prost::SchemaReadError;
+    type SerializeError = prost::EncodeError;
+    type DeserializeError = prost::DecodeError;
 
     fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
         let mut buf = Vec::new();
