@@ -28,8 +28,8 @@ lru = { version = "0.18", optional = true }
 thiserror = "2.0"
 rumqttc-v4 = { workspace = true, optional = true }
 rumqttc-v5 = { workspace = true, optional = true }
-paho-mqtt = { version = "0.13", optional = true, default-features = false }
-ntex-mqtt = { version = "5", optional = true, default-features = false }
+paho-mqtt = { version = "0.14", optional = true, default-features = false }
+ntex-mqtt = { version = "8", optional = true, default-features = false }
 tracing = "0.1"
 
 [features]
