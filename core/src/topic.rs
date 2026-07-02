@@ -9,9 +9,6 @@
 // explicitly for backward compatibility with v0.1.0.
 pub use mqtt_topic_engine::topic_match::TopicMatchError;
 pub use mqtt_topic_engine::{
-    // Error utilities
-    limits,
-    validation,
     // Main types
     CacheStrategy,
     MatcherResult,
@@ -35,6 +32,9 @@ pub use mqtt_topic_engine::{
     TopicResult,
     TopicRouter,
     TopicRouterError,
+    // Error utilities
+    limits,
+    validation,
 };
 
 // Create module aliases for backward compatibility with v0.1.0 submodule paths
@@ -63,7 +63,7 @@ pub mod topic_pattern_path {
 /// Re-exported from mqtt-topic-engine for backward compatibility.
 pub mod error {
     pub use mqtt_topic_engine::error::{
-        limits, validation, MatcherResult, PatternResult, RouterResult, TopicError, TopicResult,
+        MatcherResult, PatternResult, RouterResult, TopicError, TopicResult, limits, validation,
     };
 }
 

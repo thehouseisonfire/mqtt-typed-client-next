@@ -7,8 +7,8 @@ use tracing::warn;
 
 use crate::message_serializer::MessageSerializer;
 use crate::routing::Subscriber;
-use crate::topic::topic_match::TopicMatch;
 use crate::topic::SubscriptionId;
+use crate::topic::topic_match::TopicMatch;
 
 /// Message received from MQTT topic with deserialization result.
 pub type IncomingMessage<T, F> = (

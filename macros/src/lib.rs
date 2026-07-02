@@ -96,10 +96,10 @@ mod codegen_typed_client;
 mod lib_test;
 mod naming;
 
-use mqtt_typed_client_core::topic::topic_pattern_path::TopicPatternPath;
 use mqtt_typed_client_core::topic::CacheStrategy;
+use mqtt_typed_client_core::topic::topic_pattern_path::TopicPatternPath;
 use proc_macro::TokenStream;
-use syn::{parse::Parser, parse_macro_input, LitStr};
+use syn::{LitStr, parse::Parser, parse_macro_input};
 
 // Re-export key types for testing and advanced usage
 // pub use analysis::{StructAnalysisContext, TopicParam};

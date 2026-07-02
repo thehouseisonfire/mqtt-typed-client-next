@@ -113,20 +113,19 @@ impl TopicPatternPath {
         //Error on duplicate named parameters
         let mut seen_names = HashSet::new();
         for segment in &segments {
-            if let Some(name) = segment.param_name() {
-                if !seen_names.insert(name.to_string()) {
-                    return Err(TopicPatternError::wildcard_usage(segment.as_str()));
-                }
+            if let Some(name) = segment.param_name()
+                && !seen_names.insert(name.to_string())
+            {
+                return Err(TopicPatternError::wildcard_usage(segment.as_str()));
             }
         }
 
         if let Some(hash_pos) = segments
             .iter()
             .position(|s| matches!(*s, TopicPatternItem::Hash(_)))
+            && hash_pos != segments.len() - 1
         {
-            if hash_pos != segments.len() - 1 {
-                return Err(TopicPatternError::hash_position(topic_pattern.as_str()));
-            }
+            return Err(TopicPatternError::hash_position(topic_pattern.as_str()));
         }
 
         #[cfg(feature = "lru-cache")]

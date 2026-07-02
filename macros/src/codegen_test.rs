@@ -4,9 +4,9 @@ use mqtt_typed_client_core::topic::CacheStrategy;
 use quote::quote;
 use syn::parse_quote;
 
+use super::MacroArgs;
 use super::analysis::StructAnalysisContext;
 use super::codegen::CodeGenerator;
-use super::MacroArgs;
 
 /// Test case for code generation
 struct CodegenTestCase {

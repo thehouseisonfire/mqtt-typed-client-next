@@ -1,6 +1,6 @@
 use tokio::sync::mpsc::{
-    error::{SendError, TrySendError},
     Receiver, Sender,
+    error::{SendError, TrySendError},
 };
 use tracing::{debug, warn};
 

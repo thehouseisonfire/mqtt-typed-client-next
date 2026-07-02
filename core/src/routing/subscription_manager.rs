@@ -4,15 +4,14 @@ use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
 use crate::rumqttc::AsyncClient;
 use arcstr::ArcStr;
-use futures::stream::FuturesUnordered;
 use futures::StreamExt;
+use futures::stream::FuturesUnordered;
 use lru::LruCache;
 use tokio::{
     sync::{
         mpsc::{
-            self as tokio_mpsc, channel,
+            self as tokio_mpsc, Receiver, Sender, channel,
             error::{SendTimeoutError, TrySendError},
-            Receiver, Sender,
         },
         oneshot,
     },
@@ -23,8 +22,8 @@ use tracing::{debug, error, info, warn};
 use super::error::{SendError, SubscriptionError};
 use super::subscriber::Subscriber;
 use crate::topic::{
-    topic_match::{TopicMatch, TopicPath},
     SubscriptionId, TopicPatternPath, TopicRouter,
+    topic_match::{TopicMatch, TopicPath},
 };
 
 pub type RawMessageType<T> = (String, T);

@@ -2,10 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use arcstr::ArcStr;
 
+use crate::CacheStrategy;
 use crate::topic_match::TopicPath;
 use crate::topic_matcher::TopicMatcherNode;
 use crate::topic_pattern_path::TopicPatternPath;
-use crate::CacheStrategy;
 
 /// A subscription identifier.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

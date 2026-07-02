@@ -10,7 +10,7 @@ A **type-safe async MQTT client** built on top of the protocol-scoped rumqttc-ne
 [![Crates.io](https://img.shields.io/crates/v/mqtt-typed-client.svg)](https://crates.io/crates/mqtt-typed-client)
 [![Documentation](https://docs.rs/mqtt-typed-client/badge.svg)](https://docs.rs/mqtt-typed-client)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/holovskyi/mqtt-typed-client/blob/main/LICENSE-MIT)
-[![MSRV](https://img.shields.io/badge/MSRV-1.85.1-blue.svg)](https://blog.rust-lang.org/2025/01/09/Rust-1.85.0.html)
+[![MSRV](https://img.shields.io/badge/MSRV-1.89.0-blue.svg)](https://blog.rust-lang.org/2025/01/09/Rust-1.85.0.html)
 
 </div>
 

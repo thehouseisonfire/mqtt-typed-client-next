@@ -1,6 +1,13 @@
 [workspace]
 members = ["core", "macros", "mqtt-topic-engine"]
-resolver = "2"
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.89.0"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/holovskyi/mqtt-typed-client"
+authors = ["Artem Holovskyi <artem.holovskyi@gmail.com>"]
 
 # Shared dependency versions for all workspace members. Members opt in with
 # `rumqttc = { workspace = true, features = [...] }` and add their own features.
@@ -11,7 +18,7 @@ rumqttc-v5 = { package = "rumqttc-v5-next", version = "0.33.0", path = "../rumqt
 [package]
 name = "mqtt-typed-client-next"
 version = "0.2.0"
-edition = "2021"
+edition = "2024"
 rust-version = "1.89.0"
 description = "Type-safe async MQTT client with automatic topic routing"
 license = "MIT OR Apache-2.0"

@@ -10,8 +10,8 @@ mod shared;
 use mqtt_typed_client::rustls::{ClientConfig, RootCertStore};
 use mqtt_typed_client::{MqttClient, MqttClientConfig, Transport, WincodeSerializer};
 use mqtt_typed_client_macros::mqtt_topic;
-use rustls_pki_types::pem::PemObject;
 use rustls_pki_types::CertificateDer;
+use rustls_pki_types::pem::PemObject;
 use serde::{Deserialize, Serialize};
 use wincode::{SchemaRead, SchemaWrite};
 

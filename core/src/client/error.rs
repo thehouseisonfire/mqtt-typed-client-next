@@ -3,7 +3,7 @@ use tokio::sync::mpsc::error::SendError;
 
 use crate::{
     routing::SubscriptionError,
-    topic::{topic_pattern_path::TopicFormatError, SubscriptionId, TopicError, TopicPatternError},
+    topic::{SubscriptionId, TopicError, TopicPatternError, topic_pattern_path::TopicFormatError},
 };
 
 /// Errors that can occur during MQTT connection establishment phase.

@@ -3,8 +3,8 @@ use std::marker::PhantomData;
 use arcstr::ArcStr;
 
 use crate::{
-    structured::FromMqttMessage, MessageSerializer, MqttClient, MqttClientError,
-    MqttTopicSubscriber, SubscriptionConfig, TopicPatternError, TopicPatternPath,
+    MessageSerializer, MqttClient, MqttClientError, MqttTopicSubscriber, SubscriptionConfig,
+    TopicPatternError, TopicPatternPath, structured::FromMqttMessage,
 };
 
 /// Immutable builder for configuring MQTT subscriptions

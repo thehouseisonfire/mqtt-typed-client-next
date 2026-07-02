@@ -117,9 +117,9 @@ compile_error!("features `rumqttc-v4` and `rumqttc-v5` are mutually exclusive");
 compile_error!("enable exactly one of `rumqttc-v4` or `rumqttc-v5`");
 
 #[cfg(feature = "rumqttc-v4")]
-extern crate rumqttc_v4 as rumqttc;
+use rumqttc_v4 as rumqttc;
 #[cfg(all(feature = "rumqttc-v5", not(feature = "rumqttc-v4")))]
-extern crate rumqttc_v5 as rumqttc;
+use rumqttc_v5 as rumqttc;
 
 pub mod client;
 pub mod connection;
@@ -166,7 +166,7 @@ pub use crate::rumqttc::QoS;
 pub use crate::rumqttc::Transport;
 // Structured subscribers (macro support)
 pub use structured::{
-    extract_topic_parameter, FromMqttMessage, MessageConversionError, MqttTopicSubscriber,
+    FromMqttMessage, MessageConversionError, MqttTopicSubscriber, extract_topic_parameter,
 };
 pub use topic::CacheStrategy;
 // Topic pattern types (for manual pattern handling)
@@ -224,7 +224,7 @@ pub mod advanced {
     // High-level routing errors only
     pub use crate::routing::SubscriptionError;
     // Topic utilities
-    pub use crate::topic::{limits, validation, SubscriptionId, TopicRouterError};
+    pub use crate::topic::{SubscriptionId, TopicRouterError, limits, validation};
     pub use crate::{
         CacheStrategy, MqttPublisher, MqttSubscriber, SubscriptionConfig, TopicError,
         TopicPatternPath,

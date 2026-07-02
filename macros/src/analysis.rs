@@ -263,18 +263,18 @@ impl StructAnalysisContext {
         match ty {
             syn::Type::Path(type_path) => {
                 // Look for the last segment being "Arc"
-                if let Some(arc_segment) = type_path.path.segments.last() {
-                    if arc_segment.ident == "Arc" {
-                        // Check if Arc has angle-bracketed generic arguments
-                        if let syn::PathArguments::AngleBracketed(args) = &arc_segment.arguments {
-                            // Look for the first generic argument being TopicMatch
-                            if let Some(syn::GenericArgument::Type(syn::Type::Path(inner_path))) =
-                                args.args.first()
-                            {
-                                // Check if the inner type ends with TopicMatch
-                                if let Some(inner_segment) = inner_path.path.segments.last() {
-                                    return inner_segment.ident == "TopicMatch";
-                                }
+                if let Some(arc_segment) = type_path.path.segments.last()
+                    && arc_segment.ident == "Arc"
+                {
+                    // Check if Arc has angle-bracketed generic arguments
+                    if let syn::PathArguments::AngleBracketed(args) = &arc_segment.arguments {
+                        // Look for the first generic argument being TopicMatch
+                        if let Some(syn::GenericArgument::Type(syn::Type::Path(inner_path))) =
+                            args.args.first()
+                        {
+                            // Check if the inner type ends with TopicMatch
+                            if let Some(inner_segment) = inner_path.path.segments.last() {
+                                return inner_segment.ident == "TopicMatch";
                             }
                         }
                     }

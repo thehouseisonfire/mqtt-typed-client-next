@@ -67,10 +67,10 @@ pub mod limits {
 
 /// Validation utilities for topic operations
 pub mod validation {
-    use super::limits::*;
     #[cfg(feature = "router")]
     use super::TopicMatcherError;
     use super::TopicPatternError;
+    use super::limits::*;
 
     /// Validates topic path for basic constraints
     #[cfg(feature = "router")]

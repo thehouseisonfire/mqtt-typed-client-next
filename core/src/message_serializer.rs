@@ -3,7 +3,7 @@
 use std::fmt::Debug;
 
 #[cfg(feature = "wincode-serializer")]
-use wincode::{config::DefaultConfig, SchemaRead, SchemaWrite};
+use wincode::{SchemaRead, SchemaWrite, config::DefaultConfig};
 // Used by the serde-based serializers; unused under `--no-default-features`.
 #[cfg(any(
     feature = "json",
@@ -13,7 +13,7 @@ use wincode::{config::DefaultConfig, SchemaRead, SchemaWrite};
     feature = "ron",
     feature = "flexbuffers",
 ))]
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 
 /// Trait for serializing and deserializing MQTT message payloads.
 ///

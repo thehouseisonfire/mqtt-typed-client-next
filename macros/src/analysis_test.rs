@@ -680,10 +680,12 @@ fn test_invalid_struct_types() {
     };
     let result = StructAnalysisContext::analyze(&test_enum, &pattern);
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("mqtt_topic can only be applied to structs"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("mqtt_topic can only be applied to structs")
+    );
 
     // Test tuple struct
     let test_tuple: syn::DeriveInput = parse_quote! {

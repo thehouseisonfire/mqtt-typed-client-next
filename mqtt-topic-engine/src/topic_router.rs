@@ -239,7 +239,7 @@ impl<T> TopicRouter<T> {
 			 by collect_active_subscriptions()"
         );
 
-        let max_qos = topic_subscriptions
+        topic_subscriptions
             .keys()
             .map(|id| {
                 self.subscriptions
@@ -254,8 +254,7 @@ impl<T> TopicRouter<T> {
                     .1
             })
             .max_by_key(|qos| *qos as u8)
-            .unwrap();
-        max_qos
+            .unwrap()
     }
 
     /// Get all unique active topic patterns

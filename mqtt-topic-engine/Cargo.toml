@@ -1,15 +1,15 @@
 [package]
 name = "mqtt-topic-engine-next"
 version = "0.1.1"
-edition = "2021"
-rust-version = "1.82.0"
+edition.workspace = true
+rust-version.workspace = true
 
 description = "High-performance MQTT topic pattern matching and routing engine"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/holovskyi/mqtt-typed-client"
+license.workspace = true
+repository.workspace = true
 keywords = ["mqtt", "topic", "pattern", "matching", "routing"]
 categories = ["network-programming", "parser-implementations"]
-authors = ["Artem Holovskyi <artem.holovskyi@gmail.com>"]
+authors.workspace = true
 readme = "README.md"
 
 [lib]

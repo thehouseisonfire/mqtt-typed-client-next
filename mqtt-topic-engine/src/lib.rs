@@ -8,9 +8,9 @@
 compile_error!("features `rumqttc-v4` and `rumqttc-v5` are mutually exclusive");
 
 #[cfg(feature = "rumqttc-v4")]
-extern crate rumqttc_v4 as rumqttc;
+use rumqttc_v4 as rumqttc;
 #[cfg(all(feature = "rumqttc-v5", not(feature = "rumqttc-v4")))]
-extern crate rumqttc_v5 as rumqttc;
+use rumqttc_v5 as rumqttc;
 
 // Public modules
 pub mod cache_strategy;
@@ -37,9 +37,9 @@ mod topic_pattern_path_tests;
 // Re-export main types for convenience
 pub use cache_strategy::CacheStrategy;
 // Router-specific re-exports
-pub use error::{limits, validation, PatternResult, TopicError, TopicResult};
 #[cfg(feature = "router")]
 pub use error::{MatcherResult, RouterResult};
+pub use error::{PatternResult, TopicError, TopicResult, limits, validation};
 pub use qos::QoS;
 pub use topic_match::{TopicMatch, TopicPath};
 #[cfg(feature = "router")]

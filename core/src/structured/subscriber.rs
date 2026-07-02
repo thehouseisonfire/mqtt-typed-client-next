@@ -4,7 +4,7 @@ use std::{marker::PhantomData, sync::Arc};
 
 use thiserror::Error;
 
-use crate::{topic::topic_match::TopicMatch, MessageSerializer, MqttSubscriber};
+use crate::{MessageSerializer, MqttSubscriber, topic::topic_match::TopicMatch};
 // use {
 // 	WincodeSerializer, MessageSerializer, MqttClient, TypedSubscriber,
 // 	topic::topic_match::TopicMatch,

@@ -7,8 +7,8 @@
 use quote::{format_ident, quote};
 
 use crate::{
-    analysis::{StructAnalysisContext, TopicParam},
     MacroArgs,
+    analysis::{StructAnalysisContext, TopicParam},
 };
 
 /// Handles all code generation for MQTT topic subscribers

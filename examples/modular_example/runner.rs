@@ -3,8 +3,8 @@ use std::time::Duration;
 use mqtt_typed_client::prelude::*;
 use tokio::select;
 
-use super::topics::temperature_topic::*;
 use super::topics::TemperatureReading;
+use super::topics::temperature_topic::*;
 use crate::shared;
 
 pub async fn run_example() -> Result<()> {
