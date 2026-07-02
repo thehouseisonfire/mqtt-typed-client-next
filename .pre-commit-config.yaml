@@ -22,7 +22,8 @@ repos:
           export RUSTFLAGS="-D warnings -W clippy::pedantic -W clippy::nursery";
           cargo hack clippy --fix --allow-dirty
           --each-feature
-          --exclude-all-features
+          --group-features rumqttc-v4
+          --group-features rumqttc-v5
           --no-dev-deps
           -p mqtt-typed-client-next
           -p mqtt-typed-client-core-next
@@ -82,7 +83,8 @@ repos:
           export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-6}";
           cargo hack
           --each-feature
-          --exclude-all-features
+          --group-features rumqttc-v4
+          --group-features rumqttc-v5
           test
           -p mqtt-typed-client-next
           -p mqtt-typed-client-core-next

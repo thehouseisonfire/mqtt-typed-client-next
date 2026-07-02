@@ -99,10 +99,9 @@ where
                     if code == ConnectReturnCode::Success {
                         debug!("MQTT connection established successfully");
                         return Ok(event_loop);
-                    } else {
-                        debug!(code = ?code, "MQTT connection rejected by broker");
-                        return Err(ConnectionEstablishmentError::BrokerRejected { code });
                     }
+                    debug!(code = ?code, "MQTT connection rejected by broker");
+                    return Err(ConnectionEstablishmentError::BrokerRejected { code });
                 }
                 Ok(notification) => {
                     debug!(notification = ?notification, "Bootstrap phase notification");

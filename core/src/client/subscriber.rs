@@ -88,9 +88,8 @@ where
                 }
 
                 return Some((topic, message));
-            } else {
-                return None;
             }
+            return None;
         }
     }
 
