@@ -89,7 +89,7 @@ rumqttc-proxy = ["rumqttc-v4?/proxy", "rumqttc-v5?/proxy", "mqtt-typed-client-co
 [dev-dependencies]
 wincode = { version = "0.5.5", features = ["derive"] }
 dotenvy = "0.15"
-rand = "0.9.1"
+rand = "0.10.2"
 rumqttc-v4 = { workspace = true, features = ["url", "use-rustls"] }
 rustls-pki-types = { version = "1.9", features = ["std"] }
 serde = "1.0.219"

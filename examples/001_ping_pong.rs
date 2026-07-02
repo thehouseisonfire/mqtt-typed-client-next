@@ -18,7 +18,7 @@ use std::time::Duration;
 
 use mqtt_typed_client::{MqttClient, MqttClientError, WincodeSerializer};
 use mqtt_typed_client_macros::mqtt_topic;
-use rand::{rng, Rng};
+use rand::{rng, RngExt};
 use serde::{Deserialize, Serialize};
 use wincode::{SchemaRead, SchemaWrite};
 
