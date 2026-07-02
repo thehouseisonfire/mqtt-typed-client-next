@@ -410,10 +410,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "dotenv"
-version = "0.15.0"
+name = "dotenvy"
+version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
+checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 
 [[package]]
 name = "dunce"
@@ -1070,14 +1070,14 @@ name = "mqtt-typed-client-next"
 version = "0.2.0"
 dependencies = [
  "chrono",
- "dotenv",
+ "dotenvy",
  "mqtt-typed-client-core-next",
  "mqtt-typed-client-macros-next",
  "rand",
  "rmp-serde",
  "rumqttc-v4-next",
  "rumqttc-v5-next",
- "rustls-pemfile",
+ "rustls-pki-types",
  "serde",
  "tokio",
  "tracing",
@@ -1757,15 +1757,6 @@ dependencies = [
  "rustls-pki-types",
  "schannel",
  "security-framework",
-]
-
-[[package]]
-name = "rustls-pemfile"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dce314e5fee3f39953d46bb63bb8a46d40c2f8fb7cc5a3b6cab2bde9721d6e50"
-dependencies = [
- "rustls-pki-types",
 ]
 
 [[package]]

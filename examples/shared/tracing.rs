@@ -44,8 +44,8 @@ pub fn setup_with_level(level: &str) {
 }
 
 fn load_env_files() {
-    dotenv::from_filename("examples/.env").ok();
+    dotenvy::from_filename("examples/.env").ok();
     if std::path::Path::new("examples/.env.local").exists() {
-        dotenv::from_filename("examples/.env.local").ok();
+        dotenvy::from_filename("examples/.env.local").ok();
     }
 }

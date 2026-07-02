@@ -7,11 +7,11 @@
 
 mod shared;
 
-use std::{fs, io::BufReader};
-
 use mqtt_typed_client::rustls::{ClientConfig, RootCertStore};
 use mqtt_typed_client::{MqttClient, MqttClientConfig, Transport, WincodeSerializer};
 use mqtt_typed_client_macros::mqtt_topic;
+use rustls_pki_types::pem::PemObject;
+use rustls_pki_types::CertificateDer;
 use serde::{Deserialize, Serialize};
 use wincode::{SchemaRead, SchemaWrite};
 
@@ -30,13 +30,8 @@ pub struct GreetingTopic {
 fn create_tls_config() -> Result<ClientConfig, Box<dyn std::error::Error>> {
     let mut root_cert_store = RootCertStore::empty();
 
-    let ca_cert = fs::read("dev/certs/ca.pem")?;
-    let mut reader = BufReader::new(&ca_cert[..]);
-
-    let certs = rustls_pemfile::certs(&mut reader);
-    for cert in certs {
-        let cert = cert?;
-        root_cert_store.add(cert)?;
+    for cert in CertificateDer::pem_file_iter("dev/certs/ca.pem")? {
+        root_cert_store.add(cert?)?;
     }
 
     let config = ClientConfig::builder()

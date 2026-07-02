@@ -11,9 +11,9 @@ use uuid::Uuid;
 /// 4. Hardcoded default
 #[allow(dead_code)]
 pub fn broker_url() -> String {
-    dotenv::from_filename("examples/.env").ok();
+    dotenvy::from_filename("examples/.env").ok();
     if std::path::Path::new("examples/.env.local").exists() {
-        dotenv::from_filename("examples/.env.local").ok();
+        dotenvy::from_filename("examples/.env.local").ok();
     }
 
     env::var("MQTT_BROKER").unwrap_or_else(|_| "mqtt://localhost:1883".to_string())
