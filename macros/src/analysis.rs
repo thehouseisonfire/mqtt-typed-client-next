@@ -209,11 +209,11 @@ impl StructAnalysisContext {
         let mut field_types = std::collections::HashMap::new();
 
         for field in fields {
-            if let Some(ident) = &field.ident {
-                let field_name = ident.to_string();
-                if field_name != "payload" && field_name != "topic" {
-                    field_types.insert(field_name, field.ty.clone());
-                }
+            if let Some(ident) = &field.ident
+                && ident != "payload"
+                && ident != "topic"
+            {
+                field_types.insert(ident.to_string(), field.ty.clone());
             }
         }
 
@@ -265,19 +265,12 @@ impl StructAnalysisContext {
                 // Look for the last segment being "Arc"
                 if let Some(arc_segment) = type_path.path.segments.last()
                     && arc_segment.ident == "Arc"
+                    && let syn::PathArguments::AngleBracketed(args) = &arc_segment.arguments
+                    && let Some(syn::GenericArgument::Type(syn::Type::Path(inner_path))) =
+                        args.args.first()
+                    && let Some(inner_segment) = inner_path.path.segments.last()
                 {
-                    // Check if Arc has angle-bracketed generic arguments
-                    if let syn::PathArguments::AngleBracketed(args) = &arc_segment.arguments {
-                        // Look for the first generic argument being TopicMatch
-                        if let Some(syn::GenericArgument::Type(syn::Type::Path(inner_path))) =
-                            args.args.first()
-                        {
-                            // Check if the inner type ends with TopicMatch
-                            if let Some(inner_segment) = inner_path.path.segments.last() {
-                                return inner_segment.ident == "TopicMatch";
-                            }
-                        }
-                    }
+                    return inner_segment.ident == "TopicMatch";
                 }
             }
             _ => return false,

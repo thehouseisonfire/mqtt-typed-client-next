@@ -233,7 +233,7 @@ impl TopicPatternPath {
     /// Returns segments with bound parameters replaced by their values.
     /// Unbound wildcards remain as wildcards.
     pub fn resolve_bound_segments(&self) -> Vec<TopicPatternItem> {
-        if let Some(ref bindings) = self.parameter_bindings {
+        if let Some(bindings) = &self.parameter_bindings {
             self.apply_bindings_to_segments(bindings)
         } else {
             self.segments.clone()
