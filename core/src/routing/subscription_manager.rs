@@ -177,6 +177,7 @@ where
     /// 1. Send unsubscribe commands to MQTT broker for all topics
     /// 2. Process remaining slow sends with timeout
     /// 3. Cleanup internal data structures
+    #[allow(clippy::iter_over_hash_type)]
     async fn cleanup_active_subscriptions(&mut self) {
         // Step 1: Send unsubscribe commands to MQTT broker for all active topics
         // This prevents new messages from being received
@@ -199,13 +200,15 @@ where
                 self.handle_slow_send(slow_send_res).await;
             }
         };
-        let res = tokio::time::timeout(Duration::from_millis(500), process_slow_sends).await;
-        let _ = res.inspect_err(|_| {
+        if tokio::time::timeout(Duration::from_millis(500), process_slow_sends)
+            .await
+            .is_err()
+        {
             warn!(
                 timeout_ms = 500,
                 "SubscriptionManagerActor: Cleanup slow_send timeout"
             );
-        });
+        }
 
         // Step 3: Cleanup internal topic router data structures
         // This closes all subscriber channels and clears state
@@ -270,6 +273,7 @@ where
         let subscriptions = self.topic_router.get_topics_for_resubscribe();
         let mut failed_topics = Vec::new();
 
+        #[allow(clippy::iter_over_hash_type)]
         for (mqtt_topic, qos) in subscriptions {
             match self
                 .client
@@ -292,9 +296,9 @@ where
             Err(SubscriptionError::ResubscribeFailed)
         };
 
-        let _ = response_tx.send(result).inspect_err(|_| {
+        if response_tx.send(result).is_err() {
             warn!("Could not send resubscribe response (channel full/closed)");
-        });
+        }
     }
 
     async fn handle_unsubscribe(&mut self, id: &SubscriptionId) {
@@ -325,10 +329,10 @@ where
         let topic_arcstr = ArcStr::from(topic_str);
         // First level cache: TopicPath creation from string (this actor's cache)
         let topic_path = if let Some(path) = self.topic_path_cache.get(&topic_arcstr) {
-            path.clone()
+            Arc::clone(path)
         } else {
             let path = Arc::new(TopicPath::new(topic_arcstr.clone()));
-            self.topic_path_cache.put(topic_arcstr, path.clone());
+            self.topic_path_cache.put(topic_arcstr, Arc::clone(&path));
             path
         };
 
@@ -390,9 +394,9 @@ pub struct SubscriptionManagerController {
 
 impl SubscriptionManagerController {
     pub async fn shutdown(self) -> Result<(), JoinError> {
-        let _ = self.shutdown_tx.send(()).inspect_err(|()| {
+        if self.shutdown_tx.send(()).is_err() {
             warn!("SubscriptionManagerController: Shutdown signal already sent");
-        });
+        }
         self.join_handler.await.inspect_err(|e| {
             warn!(
                 error = ?e,

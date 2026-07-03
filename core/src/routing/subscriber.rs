@@ -14,7 +14,10 @@ pub struct Subscriber<T> {
     id: SubscriptionId,
 }
 
-impl<T> Subscriber<T> {
+impl<T> Subscriber<T>
+where
+    T: Send + Sync + 'static,
+{
     /// Creates a new subscriber with the given channels.
     #[must_use]
     pub const fn new(

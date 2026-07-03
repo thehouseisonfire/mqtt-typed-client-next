@@ -1,3 +1,5 @@
+#![allow(clippy::mem_forget)]
+
 use std::sync::Arc;
 
 use mqtt_typed_client::topic::topic_match::TopicMatch;
@@ -5,6 +7,7 @@ use mqtt_typed_client_macros::mqtt_topic;
 use serde::{Deserialize, Serialize};
 use wincode::{SchemaRead, SchemaWrite};
 
+#[allow(clippy::mem_forget)]
 #[derive(Debug, Clone, Serialize, Deserialize, SchemaWrite, SchemaRead)]
 pub struct TemperatureReading {
     pub device_id: usize,

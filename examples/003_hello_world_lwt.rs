@@ -11,6 +11,9 @@
 //! cargo run --example 003_hello_world_lwt -- --publisher
 //! ```
 
+#![allow(clippy::exit)]
+#![allow(clippy::mem_forget)]
+
 mod shared;
 
 use std::env;
@@ -20,6 +23,7 @@ use mqtt_typed_client_macros::mqtt_topic;
 use serde::{Deserialize, Serialize};
 use wincode::{SchemaRead, SchemaWrite};
 
+#[allow(clippy::mem_forget)]
 #[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug)]
 struct Message {
     text: String,
@@ -33,6 +37,7 @@ pub struct GreetingTopic {
 }
 
 #[tokio::main]
+#[allow(clippy::exit)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     shared::tracing::setup(None);
 

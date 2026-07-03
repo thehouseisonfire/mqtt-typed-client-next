@@ -16,6 +16,8 @@
 //! t=18s: Subscriber-4 connects -> receives nothing
 //! ```
 
+#![allow(clippy::mem_forget)]
+
 mod shared;
 
 use std::time::Duration;
@@ -25,6 +27,7 @@ use mqtt_typed_client_macros::mqtt_topic;
 use serde::{Deserialize, Serialize};
 use wincode::{SchemaRead, SchemaWrite};
 
+#[allow(clippy::mem_forget)]
 #[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug, Clone)]
 struct DemoMessage {
     content: String,

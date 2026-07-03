@@ -3,6 +3,8 @@
 //! Demonstrates that all available serializers can be used with the MQTT client.
 //! Requires all serializer features to be enabled.
 
+#![allow(clippy::mem_forget)]
+
 use mqtt_typed_client::{
     CborSerializer, FlexbuffersSerializer, JsonSerializer, MessagePackSerializer,
     MessageSerializer, MqttClient, PostcardSerializer, ProtobufSerializer, RonSerializer,
@@ -11,6 +13,7 @@ use mqtt_typed_client::{
 use serde::{Deserialize, Serialize};
 use wincode::{SchemaRead, SchemaWrite};
 
+#[allow(clippy::mem_forget)]
 #[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug, Clone)]
 struct TestMessage {
     text: String,

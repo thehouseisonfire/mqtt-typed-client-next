@@ -134,23 +134,18 @@ where
                 Ok(Incoming(Packet::ConnAck(ConnAck {
                     session_present: false,
                     code: ConnectReturnCode::Success,
-                    ..
                 }))) => {
                     info!(
                         "MQTT reconnected without session, resubscribing to \
 						 all topics"
                     );
-                    let _ = subscription_manager
-                        .resubscribe_all()
-                        .await
-                        .inspect_err(|err| {
-                            error!(error = ?err, "Failed to resubscribe to topics");
-                        });
+                    if let Err(err) = subscription_manager.resubscribe_all().await {
+                        error!(error = ?err, "Failed to resubscribe to topics");
+                    }
                 }
                 Ok(Incoming(Packet::ConnAck(ConnAck {
                     session_present: true,
                     code: ConnectReturnCode::Success,
-                    ..
                 }))) => {
                     info!(
                         "MQTT reconnected with session preserved, \
@@ -230,6 +225,7 @@ where
         topic: impl Into<ArcStr>,
     ) -> Result<MqttPublisher<T, F>, TopicError>
     where
+        T: Sync,
         F: MessageSerializer<T>,
     {
         let topic = topic.into();

@@ -20,6 +20,7 @@ pub struct MqttPublisher<T, F> {
 
 impl<T, F> MqttPublisher<T, F>
 where
+    T: Sync,
     F: MessageSerializer<T>,
 {
     /// Internal constructor. Use `MqttClient::get_publisher()` instead.

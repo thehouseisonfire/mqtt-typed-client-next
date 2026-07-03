@@ -262,6 +262,7 @@ impl<T: Default + Len> TopicMatcherNode<T> {
     // NOTE: These methods are only available in test builds and are used for
     // testing the tree traversal logic. In production, use TopicRouter::get_active_subscriptions()
     // which is more efficient.
+    #[allow(clippy::iter_over_hash_type)]
     fn collect_active_subscriptions_internal<'a>(
         &'a self,
         current_path: &mut Vec<TopicPatternItem>,

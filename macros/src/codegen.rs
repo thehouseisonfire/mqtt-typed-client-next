@@ -211,7 +211,7 @@ impl CodeGenerator {
                 quote! { #s },
                 quote! {
                     where
-                        F: Clone,
+                        F: Clone + ::std::marker::Sync,
                         #s: ::std::default::Default
                             + ::std::clone::Clone
                             + ::std::marker::Send
@@ -271,7 +271,7 @@ impl CodeGenerator {
                 quote! { client.clone_with_serializer::<#s>() },
                 quote! {
                     where
-                        F: Clone,
+                        F: Clone + ::std::marker::Sync,
                         #s: Default + Clone + Send + Sync + 'static + ::mqtt_typed_client_core::MessageSerializer<#payload_type>,
                 },
             )

@@ -455,16 +455,20 @@ impl TopicPatternPath {
         {
             if let Some(cache_mutex) = &self.match_cache {
                 {
-                    let mut match_cache = cache_mutex.lock().unwrap();
+                    let mut match_cache = cache_mutex
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
                     if let Some(cached_match) = match_cache.get(&topic.path) {
-                        return Ok(cached_match.clone());
+                        return Ok(Arc::clone(cached_match));
                     }
                 }
 
-                let topic_match = self.try_match_internal(topic.clone())?;
+                let topic_match = self.try_match_internal(Arc::clone(&topic))?;
                 let topic_match_arc = Arc::new(topic_match);
                 {
-                    let mut match_cache = cache_mutex.lock().unwrap();
+                    let mut match_cache = cache_mutex
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
                     match_cache.put(topic.path.clone(), Arc::clone(&topic_match_arc));
                 }
                 Ok(topic_match_arc)

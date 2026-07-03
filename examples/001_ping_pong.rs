@@ -12,6 +12,8 @@
 //! cargo run --example 001_ping_pong -- --publisher
 //! ```
 
+#![allow(clippy::mem_forget)]
+
 mod shared;
 
 use std::time::Duration;
@@ -22,6 +24,7 @@ use rand::{RngExt, rng};
 use serde::{Deserialize, Serialize};
 use wincode::{SchemaRead, SchemaWrite};
 
+#[allow(clippy::mem_forget)]
 #[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug)]
 enum PingPongMessage {
     Ping(usize),
@@ -122,7 +125,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         run_player(client, "bob", "alice", true).await
     };
 
-    let _ = tokio::join!(alice_handler, bob_handler);
+    let (alice_result, bob_result) = tokio::join!(alice_handler, bob_handler);
+    alice_result?;
+    bob_result?;
 
     connection.shutdown().await?;
     println!("\n- Goodbye!");
