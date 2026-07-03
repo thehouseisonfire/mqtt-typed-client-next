@@ -21,9 +21,9 @@ repos:
           export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-6}";
           export RUSTFLAGS="-D warnings -W clippy::pedantic -W clippy::nursery";
           cargo hack clippy --fix --allow-dirty
-          --each-feature
-          --group-features rumqttc-v4
-          --group-features rumqttc-v5
+          --feature-powerset --depth 2
+          --at-least-one-of rumqttc-v4,rumqttc-v5
+          --mutually-exclusive-features rumqttc-v4,rumqttc-v5
           --no-dev-deps
           -p mqtt-typed-client-next
           -p mqtt-typed-client-core-next
@@ -82,9 +82,9 @@ repos:
           set -euo pipefail;
           export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-6}";
           cargo hack
-          --each-feature
-          --group-features rumqttc-v4
-          --group-features rumqttc-v5
+          --feature-powerset --depth 2
+          --at-least-one-of rumqttc-v4,rumqttc-v5
+          --mutually-exclusive-features rumqttc-v4,rumqttc-v5
           test
           -p mqtt-typed-client-next
           -p mqtt-typed-client-core-next

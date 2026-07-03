@@ -20,7 +20,7 @@ pub struct MqttConnection {
 
 impl MqttConnection {
     /// Create a new connection handle
-    pub(crate) fn new(
+    pub(crate) const fn new(
         client: AsyncClient,
         subscription_manager_controller: SubscriptionManagerController,
         event_loop_handle: tokio::task::JoinHandle<()>,

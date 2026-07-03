@@ -83,7 +83,7 @@ where
         });
         let fresh_client = Self {
             client: client.clone(),
-            subscription_manager_handler: handler.clone(),
+            subscription_manager_handler: handler,
             serializer: F::default(),
         };
         let connection = MqttConnection::new(client, controller, event_loop_handle);
@@ -257,7 +257,7 @@ where
             .await
     }
 
-    /// Subscribe with custom configuration (QoS, caching strategy)
+    /// Subscribe with custom configuration (`QoS`, caching strategy)
     pub async fn subscribe_with_config<T>(
         &self,
         topic: impl TryInto<TopicPatternPath, Error: Into<MqttClientError>>,

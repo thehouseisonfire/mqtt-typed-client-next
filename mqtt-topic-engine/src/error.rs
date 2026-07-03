@@ -70,7 +70,9 @@ pub mod validation {
     #[cfg(feature = "router")]
     use super::TopicMatcherError;
     use super::TopicPatternError;
-    use super::limits::*;
+    use super::limits::MAX_TOPIC_DEPTH;
+    #[cfg(feature = "router")]
+    use super::limits::{MAX_SEGMENT_LENGTH, MAX_TOPIC_LENGTH};
 
     /// Validates topic path for basic constraints
     #[cfg(feature = "router")]

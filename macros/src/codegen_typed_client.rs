@@ -98,7 +98,7 @@ impl<'a> TypedClientGenerator<'a> {
         }
     }
 
-    /// Generate extension trait implementation for MqttClient
+    /// Generate extension trait implementation for `MqttClient`
     fn generate_extension_impl(&self) -> proc_macro2::TokenStream {
         let extension_trait = &self.names.extension_trait;
         let client_struct = &self.names.client_struct;

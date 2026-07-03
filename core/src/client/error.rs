@@ -94,15 +94,16 @@ pub enum MqttClientError {
 }
 
 impl MqttClientError {
-    /// Create a TopicPattern error
-    pub fn topic_pattern(err: TopicPatternError) -> Self {
-        MqttClientError::TopicPattern(err) // 🔄 ЗМІНЕНО: тепер пряма конверсія
+    /// Create a `TopicPattern` error
+    #[must_use]
+    pub const fn topic_pattern(err: TopicPatternError) -> Self {
+        Self::TopicPattern(err) // 🔄 ЗМІНЕНО: тепер пряма конверсія
     }
 }
 
 impl From<SendError<SubscriptionId>> for MqttClientError {
     fn from(SendError(sub_id): SendError<SubscriptionId>) -> Self {
-        MqttClientError::UnsubscribeFailed(sub_id)
+        Self::UnsubscribeFailed(sub_id)
     }
 }
 

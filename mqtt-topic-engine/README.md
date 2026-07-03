@@ -82,9 +82,9 @@ mqtt-topic-engine = { version = "0.1.0", features = ["ntex-mqtt"] }
 |---------|-------------|----------|
 | `router` | Topic routing with `TopicRouter` and `TopicMatcher` | Yes |
 | `lru-cache` | LRU caching for pattern matching results | Yes |
-| `rumqttc` | Integration with rumqttc MQTT client (QoS conversion) | No |
-| `paho-mqtt` | Integration with paho-mqtt client (QoS conversion) | No |
-| `ntex-mqtt` | Integration with ntex-mqtt client (QoS conversion) | No |
+| `rumqttc` | Integration with rumqttc MQTT client (`QoS` conversion) | No |
+| `paho-mqtt` | Integration with paho-mqtt client (`QoS` conversion) | No |
+| `ntex-mqtt` | Integration with ntex-mqtt client (`QoS` conversion) | No |
 
 ## Quick Start
 
@@ -339,13 +339,13 @@ if needs_mqtt_unsubscribe {
 # }
 ```
 
-### QoS Aggregation
+### `QoS` Aggregation
 
 A `TopicRouter` is more than a `pattern -> handler` map: it tracks the **maximum
 QoS** requested across all subscribers of the same pattern and tells you, via the
 `needs_subscribe` flag, exactly when a broker action is required. You only need to
-(re)subscribe on the broker when a pattern is new or when its aggregated QoS rises —
-adding another subscriber at the same or a lower QoS needs no wire traffic at all.
+(re)subscribe on the broker when a pattern is new or when its aggregated `QoS` rises —
+adding another subscriber at the same or a lower `QoS` needs no wire traffic at all.
 
 ```rust
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -535,7 +535,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Use Cases
 
-### IoT Device Management
+### `IoT` Device Management
 
 ```rust,no_run
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -604,7 +604,7 @@ let tenant_b_pattern = pattern.bind_parameter("tenant_id", "tenant-b")?;
 # }
 ```
 
-### Working with ArcStr
+### Working with `ArcStr`
 
 Under the hood, `mqtt-topic-engine` uses `ArcStr` for efficient string handling with cheap cloning.
 You can pass regular `&str` or `String` values, and they will be converted automatically:
@@ -724,7 +724,7 @@ Topic engine is designed for high-performance applications:
 
 ### MQTT Client Support
 
-The library includes its own QoS type and provides optional integration with popular MQTT clients through seamless QoS type conversions:
+The library includes its own `QoS` type and provides optional integration with popular MQTT clients through seamless `QoS` type conversions:
 
 **Supported MQTT clients:**
 - **rumqttc** - Enable with `features = ["rumqttc"]`
@@ -748,9 +748,9 @@ mqtt-topic-engine = "0.1.0"
 
 The core matching and routing logic is already client-agnostic and works with any MQTT client library.
 
-### QoS Type Conversions
+### `QoS` Type Conversions
 
-When MQTT client integration features are enabled, the library provides automatic QoS type conversions:
+When MQTT client integration features are enabled, the library provides automatic `QoS` type conversions:
 
 ```rust,ignore
 use mqtt_topic_engine::QoS;
@@ -778,7 +778,7 @@ let paho_qos: paho_mqtt::QoS = engine_qos.to_paho_mqtt();
 let ntex_qos: ntex_mqtt::QoS = engine_qos.to_ntex_mqtt();
 ```
 
-This enables seamless integration with any supported MQTT client without manual QoS type conversions.
+This enables seamless integration with any supported MQTT client without manual `QoS` type conversions.
 
 ## API Documentation
 

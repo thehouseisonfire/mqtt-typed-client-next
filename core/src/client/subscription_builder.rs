@@ -92,7 +92,7 @@ where
         }
     }
 
-    /// Set QoS level
+    /// Set `QoS` level
     pub fn with_qos(self, qos: crate::rumqttc::QoS) -> Self {
         Self {
             config: SubscriptionConfig { qos },
@@ -107,7 +107,7 @@ where
     /// The new pattern must have the same parameter names and types as the original.
     ///
     /// # Parameters
-    /// * `custom_pattern` - New topic pattern string (e.g., "sensors/{location}/data/{sensor_id}")
+    /// * `custom_pattern` - New topic pattern string (e.g., "`sensors/{location}/data/{sensor_id`}")
     ///
     /// # Compatibility Requirements
     /// - Same parameter names: `{location}`, `{sensor_id}`, etc.

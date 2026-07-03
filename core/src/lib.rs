@@ -172,7 +172,7 @@ pub use topic::CacheStrategy;
 // Topic pattern types (for manual pattern handling)
 pub use topic::{TopicError, TopicPatternError, TopicPatternPath};
 
-/// Result type alias for operations that may fail with MqttClientError
+/// Result type alias for operations that may fail with `MqttClientError`
 pub type Result<T> = std::result::Result<T, MqttClientError>;
 
 /// Prelude module for convenient imports

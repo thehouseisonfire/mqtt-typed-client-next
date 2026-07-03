@@ -14,7 +14,7 @@ use crate::{MessageSerializer, MqttClientError, TypedLastWill};
 ///
 /// # Performance Tuning Guide
 ///
-/// ## Low-Resource Environments (IoT devices, embedded systems):
+/// ## Low-Resource Environments (`IoT` devices, embedded systems):
 /// ```rust
 /// use mqtt_typed_client_core::ClientSettings;
 ///
@@ -54,7 +54,7 @@ pub struct ClientSettings {
     /// repeated string parsing overhead. Each cache entry stores ~50-150 bytes.
     ///
     /// **Impact:**
-    /// - **Memory**: ~50-150 bytes × cache_size
+    /// - **Memory**: ~50-150 bytes × `cache_size`
     /// - **CPU**: Reduces topic string parsing for repeated topics
     /// - **Latency**: Faster message routing for cached topics
     ///
@@ -72,7 +72,7 @@ pub struct ClientSettings {
     /// **Event Loop Channel Capacity** - Internal buffer for MQTT protocol messages.
     ///
     /// Controls the buffer size of the underlying rumqttc event loop channel.
-    /// This affects how many MQTT protocol packets (ConnAck, Publish, PubAck, etc.)
+    /// This affects how many MQTT protocol packets (`ConnAck`, Publish, `PubAck`, etc.)
     /// can be queued internally before backpressure occurs.
     ///
     /// **Impact:**
@@ -98,7 +98,7 @@ pub struct ClientSettings {
     /// **Command Channel Capacity** - Queue size for subscription management commands.
     ///
     /// Controls the buffer for internal commands between the client API and the
-    /// subscription manager actor. Commands include: subscribe, send, resubscribe_all.
+    /// subscription manager actor. Commands include: subscribe, send, `resubscribe_all`.
     /// Each command represents a method call like `client.subscribe()` or message dispatch.
     ///
     /// **Impact:**
@@ -108,7 +108,7 @@ pub struct ClientSettings {
     ///
     /// **Tuning Guidelines:**
     /// - **Sequential usage**: 10-50 (one command at a time)
-    /// - **Concurrent subscriptions**: 50-200 (multiple subscribe() calls)
+    /// - **Concurrent subscriptions**: 50-200 (multiple `subscribe()` calls)
     /// - **High-frequency operations**: 200-1000 (frequent sub/unsub)
     /// - **Batch operations**: 500+ (bulk subscription changes)
     ///
@@ -147,7 +147,7 @@ pub struct ClientSettings {
     /// **Connection Timeout** - Maximum time to wait for initial MQTT connection.
     ///
     /// Controls how long `MqttClient::connect()` will wait for the broker to
-    /// respond with a successful ConnAck packet before timing out.
+    /// respond with a successful `ConnAck` packet before timing out.
     ///
     /// **Impact:**
     /// - **Startup time**: Longer timeout = slower failure detection
@@ -194,6 +194,7 @@ pub struct MqttClientConfig<S> {
 
 impl<S> MqttClientConfig<S> {
     /// Create config with default settings
+    #[must_use]
     pub fn new(client_id: &str, host: &str, port: u16) -> Self {
         Self {
             connection: MqttOptions::new(client_id, Broker::tcp(host, port)),
@@ -214,6 +215,7 @@ impl<S> MqttClientConfig<S> {
     }
 
     /// Create config for localhost:1883
+    #[must_use]
     pub fn localhost(client_id: &str) -> Self {
         Self::new(client_id, "localhost", 1883)
     }

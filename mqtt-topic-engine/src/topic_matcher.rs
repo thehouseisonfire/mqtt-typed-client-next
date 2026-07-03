@@ -40,7 +40,7 @@ pub enum TopicMatcherError {
 }
 
 impl TopicMatcherError {
-    /// Creates a new InvalidSegment error
+    /// Creates a new `InvalidSegment` error
     pub fn invalid_segment(segment: impl Into<String>, position: usize) -> Self {
         Self::InvalidSegment {
             segment: segment.into(),
@@ -48,7 +48,7 @@ impl TopicMatcherError {
         }
     }
 
-    /// Creates a new InvalidUtf8 error
+    /// Creates a new `InvalidUtf8` error
     pub fn invalid_utf8(details: impl Into<String>) -> Self {
         Self::InvalidUtf8 {
             details: details.into(),
@@ -64,10 +64,10 @@ pub struct TopicMatcherNode<T> {
     exact_match_data: Option<T>,
 
     /// Children nodes for exact matches of next segment
-    exact_children: HashMap<Substr, TopicMatcherNode<T>>,
+    exact_children: HashMap<Substr, Self>,
 
     /// Node for '+' pattern wildcard match (single segment)
-    single_level_wildcard_node: Option<Box<TopicMatcherNode<T>>>,
+    single_level_wildcard_node: Option<Box<Self>>,
 
     /// Data for '#' pattern wildcard match (multiple segments)
     multi_level_wildcard_data: Option<T>,
@@ -110,6 +110,7 @@ impl<T: Default + Len> Default for TopicMatcherNode<T> {
 
 impl<T: Default + Len> TopicMatcherNode<T> {
     /// Creates a new empty topic matcher node
+    #[must_use]
     pub fn new() -> Self {
         Self {
             exact_match_data: None,
@@ -138,12 +139,12 @@ impl<T: Default + Len> TopicMatcherNode<T> {
         for segment in resolved_segments {
             match segment {
                 TopicPatternItem::Str(s) => {
-                    current_node = current_node.exact_children.entry(s.clone()).or_default()
+                    current_node = current_node.exact_children.entry(s.clone()).or_default();
                 }
                 TopicPatternItem::Plus(_) => {
                     current_node = current_node
                         .single_level_wildcard_node
-                        .get_or_insert_with(|| Box::new(TopicMatcherNode::new()))
+                        .get_or_insert_with(|| Box::new(Self::new()));
                 }
                 TopicPatternItem::Hash(_) => {
                     // Hash wildcard must be the last segment, so we can return immediately
@@ -171,7 +172,7 @@ impl<T: Default + Len> TopicMatcherNode<T> {
             })?;
             f(data);
             if data.is_empty() {
-                self.exact_match_data = None
+                self.exact_match_data = None;
             }
             return Ok(self.is_empty());
         }
@@ -228,7 +229,7 @@ impl<T: Default + Len> TopicMatcherNode<T> {
                     .for_each(|data| matching_data.push(data));
                 self.multi_level_wildcard_data
                     .iter()
-                    .for_each(|data| matching_data.push(data))
+                    .for_each(|data| matching_data.push(data));
             }
             [segment, remaining_segments @ ..] => {
                 // Check for exact segment match
@@ -239,7 +240,7 @@ impl<T: Default + Len> TopicMatcherNode<T> {
                 self.single_level_wildcard_node
                     .iter()
                     .for_each(|plus_node| {
-                        plus_node.collect_matching_subscriptions(remaining_segments, matching_data)
+                        plus_node.collect_matching_subscriptions(remaining_segments, matching_data);
                     });
                 // # wildcard matches remainder of path
                 self.multi_level_wildcard_data

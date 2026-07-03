@@ -8,25 +8,35 @@ compile_error!("features `rumqttc-v4` and `rumqttc-v5` are mutually exclusive");
 #[cfg(not(any(feature = "rumqttc-v4", feature = "rumqttc-v5")))]
 compile_error!("enable exactly one of `rumqttc-v4` or `rumqttc-v5`");
 
-#[cfg(feature = "rumqttc-v4")]
-use rumqttc_v4 as rumqttc;
-#[cfg(all(feature = "rumqttc-v5", not(feature = "rumqttc-v4")))]
-use rumqttc_v5 as rumqttc;
-
 pub use mqtt_typed_client_core::*;
 #[cfg(feature = "macros")]
 pub use mqtt_typed_client_macros::*;
 
+#[cfg(feature = "rumqttc-v4")]
 #[cfg(any(
     feature = "rumqttc-use-rustls",
     feature = "rumqttc-use-rustls-no-provider"
 ))]
-pub use rumqttc::tokio_rustls;
+pub use rumqttc_v4::tokio_rustls;
+#[cfg(feature = "rumqttc-v4")]
 #[cfg(any(
     feature = "rumqttc-use-rustls",
     feature = "rumqttc-use-rustls-no-provider"
 ))]
-pub use rumqttc::tokio_rustls::rustls;
+pub use rumqttc_v4::tokio_rustls::rustls;
+
+#[cfg(all(feature = "rumqttc-v5", not(feature = "rumqttc-v4")))]
+#[cfg(any(
+    feature = "rumqttc-use-rustls",
+    feature = "rumqttc-use-rustls-no-provider"
+))]
+pub use rumqttc_v5::tokio_rustls;
+#[cfg(all(feature = "rumqttc-v5", not(feature = "rumqttc-v4")))]
+#[cfg(any(
+    feature = "rumqttc-use-rustls",
+    feature = "rumqttc-use-rustls-no-provider"
+))]
+pub use rumqttc_v5::tokio_rustls::rustls;
 
 pub mod prelude {
     //! Convenient imports for common use cases.

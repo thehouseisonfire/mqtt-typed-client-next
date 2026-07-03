@@ -22,7 +22,7 @@ pub struct CodeGenerator {
 
 impl CodeGenerator {
     /// Create a new code generator with the given analysis context
-    pub fn new(context: StructAnalysisContext, macro_args: MacroArgs) -> Self {
+    pub const fn new(context: StructAnalysisContext, macro_args: MacroArgs) -> Self {
         Self {
             context,
             macro_args,
@@ -30,17 +30,17 @@ impl CodeGenerator {
     }
 
     /// Check if subscriber code should be generated
-    pub fn should_generate_subscriber(&self) -> bool {
+    pub const fn should_generate_subscriber(&self) -> bool {
         self.macro_args.generate_subscriber
     }
 
     /// Check if publisher code should be generated
-    pub fn should_generate_publisher(&self) -> bool {
+    pub const fn should_generate_publisher(&self) -> bool {
         self.macro_args.generate_publisher
     }
 
     /// Check if typed client code should be generated
-    pub fn should_generate_typed_client(&self) -> bool {
+    pub const fn should_generate_typed_client(&self) -> bool {
         // Disable typed client when custom serializer is specified because:
         // - TypedClient (e.g., SensorDataClient<F>) uses generic F from parent MqttClient<F>
         // - Custom serializer requires concrete type (e.g., JsonSerializer) known at macro expansion
@@ -55,7 +55,7 @@ impl CodeGenerator {
     }
 
     /// Check if last will code should be generated
-    pub fn should_generate_last_will(&self) -> bool {
+    pub const fn should_generate_last_will(&self) -> bool {
         self.macro_args.generate_last_will
     }
 
@@ -584,7 +584,6 @@ impl CodeGenerator {
         self.context
             .payload_type
             .as_ref()
-            .map(|ty| quote! { #ty })
-            .unwrap_or_else(|| quote! { Vec<u8> })
+            .map_or_else(|| quote! { Vec<u8> }, |ty| quote! { #ty })
     }
 }

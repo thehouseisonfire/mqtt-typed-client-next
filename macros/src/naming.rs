@@ -5,11 +5,11 @@ use quote::format_ident;
 /// Generated names for typed client components
 #[derive(Debug, Clone)]
 pub struct TypedClientNames {
-    /// snake_case method name: "sensor_message"  
+    /// `snake_case` method name: "`sensor_message`"  
     pub method_name: String,
-    /// Client struct name: "SensorMessageClient"
+    /// Client struct name: "`SensorMessageClient`"
     pub client_struct: syn::Ident,
-    /// Extension trait name: "SensorMessageExt"
+    /// Extension trait name: "`SensorMessageExt`"
     pub extension_trait: syn::Ident,
 }
 
@@ -29,7 +29,7 @@ impl TypedClientNames {
     }
 }
 
-/// Convert PascalCase to snake_case
+/// Convert `PascalCase` to `snake_case`
 fn to_snake_case(input: &str) -> String {
     let mut result = String::new();
     let chars = input.chars().peekable();

@@ -3,7 +3,7 @@
 //! [`TopicRouter`] maps MQTT subscription patterns to caller-supplied payloads
 //! `T`, assigns each a [`SubscriptionId`], and resolves all payloads whose
 //! pattern matches a delivered topic. It also tracks the set of distinct broker
-//! subscriptions (with their effective QoS) so callers know when to actually
+//! subscriptions (with their effective `QoS`) so callers know when to actually
 //! subscribe or unsubscribe on the wire.
 
 #![allow(clippy::missing_docs_in_private_items)]
@@ -55,12 +55,13 @@ pub enum TopicRouterError {
 }
 
 impl TopicRouterError {
-    /// Creates a new SubscriptionNotFound error
-    pub fn subscription_not_found(id: SubscriptionId) -> Self {
+    /// Creates a new `SubscriptionNotFound` error
+    #[must_use]
+    pub const fn subscription_not_found(id: SubscriptionId) -> Self {
         Self::SubscriptionNotFound { id }
     }
 
-    /// Creates a new InvalidRoutingTopic error
+    /// Creates a new `InvalidRoutingTopic` error
     pub fn invalid_routing_topic(topic: impl Into<String>, reason: impl Into<String>) -> Self {
         Self::InvalidRoutingTopic {
             topic: topic.into(),
@@ -68,7 +69,7 @@ impl TopicRouterError {
         }
     }
 
-    /// Creates a new InternalStateCorrupted error
+    /// Creates a new `InternalStateCorrupted` error
     pub fn internal_state_corrupted(details: impl Into<String>) -> Self {
         Self::InternalStateCorrupted {
             details: details.into(),
@@ -97,7 +98,7 @@ type SubscriptionTable<T> = HashMap<SubscriptionId, T>;
 /// Each subscription pattern is associated with a payload `T` and a unique
 /// [`SubscriptionId`]. Delivered topics are matched against all stored patterns
 /// (including `+`/`#` wildcards); the router also bookkeeps which distinct
-/// broker subscriptions are active and at what QoS.
+/// broker subscriptions are active and at what `QoS`.
 pub struct TopicRouter<T> {
     topic_matcher: TopicMatcherNode<SubscriptionTable<T>>,
     subscriptions: SubscriptionTable<(TopicPatternPath, QoS)>,
@@ -112,6 +113,7 @@ impl<T> Default for TopicRouter<T> {
 
 impl<T> TopicRouter<T> {
     /// Creates an empty router with no subscriptions.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             topic_matcher: TopicMatcherNode::new(),
@@ -123,7 +125,7 @@ impl<T> TopicRouter<T> {
     /// Registers a subscription for `topic` with the given `qos` and payload.
     ///
     /// Returns `(needs_subscribe, id)`: `needs_subscribe` is `true` when this is
-    /// the first subscription for the pattern or it raises the effective QoS, so
+    /// the first subscription for the pattern or it raises the effective `QoS`, so
     /// the caller must (re)subscribe on the broker; `id` identifies the new
     /// subscription for later [`unsubscribe`](Self::unsubscribe).
     pub fn add_subscription(
@@ -195,6 +197,7 @@ impl<T> TopicRouter<T> {
     ///
     /// Each entry is `(id, (pattern, qos), payload)` for a matching subscription
     /// (one delivered topic may match several patterns via `+`/`#` wildcards).
+    #[must_use]
     pub fn get_subscribers<'a>(
         &'a self,
         topic: &TopicPath,
@@ -220,9 +223,9 @@ impl<T> TopicRouter<T> {
         self.subscriptions.values()
     }
 
-    /// Finds the maximum QoS among the subscribers to a single topic pattern.
+    /// Finds the maximum `QoS` among the subscribers to a single topic pattern.
     ///
-    /// Intentionally unused for now: it is the ready-made helper for the QoS
+    /// Intentionally unused for now: it is the ready-made helper for the `QoS`
     /// downgrade described in the TODO inside [`unsubscribe`](Self::unsubscribe).
     /// The QoS-raising counterpart is currently inlined in
     /// [`add_subscription`](Self::add_subscription); when downgrade is
@@ -258,6 +261,7 @@ impl<T> TopicRouter<T> {
     }
 
     /// Get all unique active topic patterns
+    #[must_use]
     pub fn get_topics_for_unsubscribe(&self) -> HashSet<ArcStr> {
         self.subscriptions
             .values()
@@ -265,8 +269,9 @@ impl<T> TopicRouter<T> {
             .collect()
     }
 
-    /// Get all active topic patterns with their maximum QoS
-    /// Returns unique topics (grouped by pattern) with the highest QoS among all subscribers
+    /// Get all active topic patterns with their maximum `QoS`
+    /// Returns unique topics (grouped by pattern) with the highest `QoS` among all subscribers
+    #[must_use]
     pub fn get_topics_for_resubscribe(&self) -> HashMap<ArcStr, QoS> {
         let mut result: HashMap<ArcStr, QoS> = HashMap::new();
 

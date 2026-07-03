@@ -42,7 +42,8 @@ pub struct WincodeSerializer;
 #[cfg(feature = "wincode-serializer")]
 impl WincodeSerializer {
     /// Creates a new serializer with default configuration.
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -66,7 +67,7 @@ where
     }
 }
 
-/// JSON serializer using serde_json.
+/// JSON serializer using `serde_json`.
 ///
 /// Requires types to implement `serde::Serialize` and `serde::de::DeserializeOwned`.
 ///
@@ -78,7 +79,8 @@ pub struct JsonSerializer;
 #[cfg(feature = "json")]
 impl JsonSerializer {
     /// Creates a new JSON serializer.
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -100,7 +102,7 @@ where
     }
 }
 
-/// MessagePack serializer using rmp-serde.
+/// `MessagePack` serializer using rmp-serde.
 ///
 /// Requires types to implement `serde::Serialize` and `serde::de::DeserializeOwned`.
 ///
@@ -111,8 +113,9 @@ pub struct MessagePackSerializer;
 
 #[cfg(feature = "messagepack")]
 impl MessagePackSerializer {
-    /// Creates a new MessagePack serializer.
-    pub fn new() -> Self {
+    /// Creates a new `MessagePack` serializer.
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -146,7 +149,8 @@ pub struct CborSerializer;
 #[cfg(feature = "cbor")]
 impl CborSerializer {
     /// Creates a new CBOR serializer.
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -173,7 +177,7 @@ where
 /// Postcard serializer using postcard crate.
 ///
 /// Requires types to implement `serde::Serialize` and `serde::de::DeserializeOwned`.
-/// Optimized for no_std environments and embedded systems.
+/// Optimized for `no_std` environments and embedded systems.
 ///
 /// Available when the `postcard` feature is enabled.
 #[cfg(feature = "postcard")]
@@ -183,7 +187,8 @@ pub struct PostcardSerializer;
 #[cfg(feature = "postcard")]
 impl PostcardSerializer {
     /// Creates a new Postcard serializer.
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -218,7 +223,8 @@ pub struct ProtobufSerializer;
 #[cfg(feature = "protobuf")]
 impl ProtobufSerializer {
     /// Creates a new Protobuf serializer.
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -255,7 +261,8 @@ pub struct RonSerializer;
 #[cfg(feature = "ron")]
 impl RonSerializer {
     /// Creates a new RON serializer.
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -282,7 +289,7 @@ where
 /// Flexbuffers serializer using flexbuffers crate.
 ///
 /// Requires types to implement `serde::Serialize` and `serde::de::DeserializeOwned`.
-/// Zero-copy schemaless binary format from Google FlatBuffers.
+/// Zero-copy schemaless binary format from Google `FlatBuffers`.
 ///
 /// Available when the `flexbuffers` feature is enabled.
 #[cfg(feature = "flexbuffers")]
@@ -292,7 +299,8 @@ pub struct FlexbuffersSerializer;
 #[cfg(feature = "flexbuffers")]
 impl FlexbuffersSerializer {
     /// Creates a new Flexbuffers serializer.
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }

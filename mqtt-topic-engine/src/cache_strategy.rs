@@ -29,7 +29,7 @@ pub enum CacheStrategy {
     #[cfg(feature = "lru-cache")]
     Lru(NonZeroUsize),
 
-    /// No caching - always create new TopicPath instances
+    /// No caching - always create new `TopicPath` instances
     ///
     /// Disables caching entirely. Use this when:
     /// - Topic patterns are rarely repeated
@@ -61,6 +61,8 @@ impl CacheStrategy {
     /// // Create LRU cache with 100 entries
     /// let cache = CacheStrategy::new(100);
     /// ```
+    #[allow(clippy::missing_const_for_fn)] // const promotion breaks with `lru-cache` feature (tracing::warn)
+    #[must_use]
     pub fn new(capacity: usize) -> Self {
         if capacity == 0 {
             Self::NoCache
@@ -101,7 +103,8 @@ impl CacheStrategy {
     /// let cache = CacheStrategy::new(100);
     /// assert_eq!(cache.capacity(), Some(NonZeroUsize::new(100).unwrap()));
     /// ```
-    pub fn capacity(&self) -> Option<NonZeroUsize> {
+    #[must_use]
+    pub const fn capacity(&self) -> Option<NonZeroUsize> {
         match self {
             #[cfg(feature = "lru-cache")]
             Self::Lru(size) => Some(*size),

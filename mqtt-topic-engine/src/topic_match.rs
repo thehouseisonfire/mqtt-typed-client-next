@@ -35,6 +35,7 @@ impl TopicPath {
     }
 
     /// Returns a cheap (refcounted) clone of the full topic string.
+    #[must_use]
     pub fn path(&self) -> ArcStr {
         self.path.clone()
     }
@@ -92,7 +93,7 @@ pub struct TopicMatch {
 }
 
 impl TopicMatch {
-    pub(crate) fn from_match_result(
+    pub(crate) const fn from_match_result(
         topic: Arc<TopicPath>,
         params: SmallVec<[Range<usize>; 3]>,
         named_params: SmallVec<[(Substr, Range<usize>); 3]>,
@@ -105,6 +106,7 @@ impl TopicMatch {
     }
 
     /// Returns the matched topic's segments.
+    #[must_use]
     pub fn path_segments(&self) -> &Vec<Substr> {
         &self.topic.segments
     }
@@ -130,6 +132,7 @@ impl TopicMatch {
     ///
     /// Parameters are numbered in pattern order; a `#` wildcard yields the
     /// joined remainder of the topic.
+    #[must_use]
     pub fn get_param(&self, index: usize) -> Option<Substr> {
         self.params
             .get(index)
@@ -137,6 +140,7 @@ impl TopicMatch {
     }
 
     /// Returns the value of the named parameter `name`, if the pattern bound one.
+    #[must_use]
     pub fn get_named_param(&self, name: &str) -> Option<Substr> {
         self.named_params
             .iter()
@@ -147,6 +151,7 @@ impl TopicMatch {
     }
 
     /// Returns a cheap (refcounted) clone of the matched topic string.
+    #[must_use]
     pub fn topic_path(&self) -> ArcStr {
         self.topic.path.clone()
     }

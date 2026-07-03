@@ -263,10 +263,10 @@ use syn::{LitStr, parse::Parser, parse_macro_input};
 /// - Integrating with legacy systems using different formats (JSON, XML)
 /// - Optimizing specific message types (binary formats for high-frequency data)
 /// - Interoperability with external services that expect specific formats
-/// - Mixed protocols in IoT systems (some devices use JSON, others use MessagePack)
+/// - Mixed protocols in `IoT` systems (some devices use JSON, others use `MessagePack`)
 ///
 /// **Limitations:**
-/// - TypedClient generation is disabled when using custom serializers
+/// - `TypedClient` generation is disabled when using custom serializers
 ///   (typed clients require generic serializer parameter, custom serializers are concrete types)
 /// - The custom serializer must implement `MessageSerializer<PayloadType>`
 /// - The serializer must be `Default + Clone + Send + Sync + 'static`
@@ -487,7 +487,7 @@ fn parse_macro_args(args: TokenStream) -> Result<MacroArgs, syn::Error> {
 
 /// Parse and validate a topic pattern string
 ///
-/// Converts string literal into validated TopicPatternPath with syntax validation.
+/// Converts string literal into validated `TopicPatternPath` with syntax validation.
 ///
 /// Converts a string literal from the macro arguments into a validated
 /// `TopicPatternPath`, checking for syntax errors and invalid wildcard usage.

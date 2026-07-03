@@ -8,7 +8,7 @@ use crate::message_serializer::MessageSerializer;
 
 /// Typed MQTT publisher for a specific topic.
 ///
-/// Created via `MqttClient::get_publisher()`. Supports QoS and retain configuration.
+/// Created via `MqttClient::get_publisher()`. Supports `QoS` and retain configuration.
 pub struct MqttPublisher<T, F> {
     client: AsyncClient,
     topic: ArcStr,
@@ -22,7 +22,7 @@ impl<T, F> MqttPublisher<T, F>
 where
     F: MessageSerializer<T>,
 {
-    /// Internal constructor. Use MqttClient::get_publisher() instead.
+    /// Internal constructor. Use `MqttClient::get_publisher()` instead.
     pub fn new(client: AsyncClient, serializer: F, topic: impl Into<ArcStr>) -> Self {
         Self {
             client,
@@ -34,29 +34,29 @@ where
         }
     }
     /// Sets Quality of Service level for published messages.
-    pub fn with_qos(mut self, qos: QoS) -> Self {
+    pub const fn with_qos(mut self, qos: QoS) -> Self {
         self.qos = qos;
         self
     }
 
     /// Sets retain flag for published messages.
-    pub fn with_retain(mut self, retain: bool) -> Self {
+    pub const fn with_retain(mut self, retain: bool) -> Self {
         self.retain = retain;
         self
     }
 
     /// Get the topic this publisher is configured for.
-    pub fn topic(&self) -> &ArcStr {
+    pub const fn topic(&self) -> &ArcStr {
         &self.topic
     }
 
     /// Get qos level for this publisher.
-    pub fn qos(&self) -> QoS {
+    pub const fn qos(&self) -> QoS {
         self.qos
     }
 
     /// Get retain flag for this publisher.
-    pub fn retain(&self) -> bool {
+    pub const fn retain(&self) -> bool {
         self.retain
     }
 
@@ -120,7 +120,7 @@ where
     /// Clear retained message for this topic
     ///
     /// Sends an empty payload with retain=true to remove any retained message.
-    /// Uses the same QoS level as configured for this publisher.
+    /// Uses the same `QoS` level as configured for this publisher.
     pub async fn clear_retained(&self) -> Result<(), MqttClientError> {
         self.client
             .publish(

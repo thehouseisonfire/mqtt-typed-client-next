@@ -45,21 +45,21 @@ pub enum TopicPatternError {
 }
 
 impl TopicPatternError {
-    /// Creates a new HashPosition error
+    /// Creates a new `HashPosition` error
     pub fn hash_position(pattern: impl Into<String>) -> Self {
         Self::HashPosition {
             pattern: pattern.into(),
         }
     }
 
-    /// Creates a new WildcardUsage error
+    /// Creates a new `WildcardUsage` error
     pub fn wildcard_usage(usage: impl Into<String>) -> Self {
         Self::WildcardUsage {
             usage: usage.into(),
         }
     }
 
-    /// Creates a new PatternStructureMismatch error
+    /// Creates a new `PatternStructureMismatch` error
     pub fn pattern_mismatch(original: impl Into<String>, custom: impl Into<String>) -> Self {
         Self::PatternStructureMismatch {
             original: original.into(),
@@ -87,38 +87,40 @@ pub enum TopicPatternItem {
 
 impl TopicPatternItem {
     /// Returns string representation of the pattern item.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         match self {
-            TopicPatternItem::Str(s) => s,
-            TopicPatternItem::Plus(_) => "+",
-            TopicPatternItem::Hash(_) => "#",
+            Self::Str(s) => s,
+            Self::Plus(_) => "+",
+            Self::Hash(_) => "#",
         }
     }
 
     /// Returns pattern representation with named parameters in braces.
+    #[must_use]
     pub fn as_wildcard(&self) -> Cow<'_, str> {
         match self {
-            TopicPatternItem::Plus(None) => Cow::Borrowed("+"),
-            TopicPatternItem::Hash(None) => Cow::Borrowed("#"),
-            TopicPatternItem::Plus(Some(name)) => Cow::Owned(format!("{{{name}}}")),
-            TopicPatternItem::Hash(Some(name)) => Cow::Owned(format!("{{{name}:#}}")),
-            TopicPatternItem::Str(s) => Cow::Borrowed(s),
+            Self::Plus(None) => Cow::Borrowed("+"),
+            Self::Hash(None) => Cow::Borrowed("#"),
+            Self::Plus(Some(name)) => Cow::Owned(format!("{{{name}}}")),
+            Self::Hash(Some(name)) => Cow::Owned(format!("{{{name}:#}}")),
+            Self::Str(s) => Cow::Borrowed(s),
         }
     }
 
     /// Returns parameter name for named wildcards.
+    #[must_use]
     pub fn param_name(&self) -> Option<Substr> {
         match self {
-            TopicPatternItem::Plus(Some(name)) | TopicPatternItem::Hash(Some(name)) => {
-                Some(name.clone())
-            }
+            Self::Plus(Some(name)) | Self::Hash(Some(name)) => Some(name.clone()),
             _ => None,
         }
     }
 
     /// Returns true if this item is a wildcard (+ or #).
-    pub fn is_wildcard(&self) -> bool {
-        matches!(self, TopicPatternItem::Plus(_) | TopicPatternItem::Hash(_))
+    #[must_use]
+    pub const fn is_wildcard(&self) -> bool {
+        matches!(self, Self::Plus(_) | Self::Hash(_))
     }
 }
 
@@ -138,26 +140,26 @@ impl TryFrom<Substr> for TopicPatternItem {
     type Error = TopicPatternError;
     fn try_from(item: Substr) -> Result<Self, Self::Error> {
         let res = match item.as_str() {
-            "+" => TopicPatternItem::Plus(None),
-            "#" => TopicPatternItem::Hash(None),
-            _ if item.starts_with("{") && item.ends_with(":#}") => {
+            "+" => Self::Plus(None),
+            "#" => Self::Hash(None),
+            _ if item.starts_with('{') && item.ends_with(":#}") => {
                 let inner = item.trim_start_matches('{').trim_end_matches(":#}");
                 if inner.is_empty() {
                     return Err(TopicPatternError::wildcard_usage(item.as_str()));
                 }
-                TopicPatternItem::Hash(Some(item.substr_from(inner)))
+                Self::Hash(Some(item.substr_from(inner)))
             }
-            _ if item.starts_with("{") && item.ends_with("}") => {
-                let inner = item.trim_start_matches('{').trim_end_matches("}");
+            _ if item.starts_with('{') && item.ends_with('}') => {
+                let inner = item.trim_start_matches('{').trim_end_matches('}');
                 if inner.is_empty() {
                     return Err(TopicPatternError::wildcard_usage(item.as_str()));
                 }
-                TopicPatternItem::Plus(Some(item.substr_from(inner)))
+                Self::Plus(Some(item.substr_from(inner)))
             }
             _ if item.contains(['+', '#']) => {
                 return Err(TopicPatternError::wildcard_usage(item.as_str()));
             }
-            _ => TopicPatternItem::Str(item),
+            _ => Self::Str(item),
         };
         Ok(res)
     }

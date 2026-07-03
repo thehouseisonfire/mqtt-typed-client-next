@@ -62,7 +62,7 @@ type SlowSendResult<T> = (
 
 pub struct SubscriptionManagerActor<T> {
     topic_router: TopicRouterType<T>,
-    /// LRU cache for TopicPath instances to avoid repeated parsing of topic strings.
+    /// LRU cache for `TopicPath` instances to avoid repeated parsing of topic strings.
     /// Used in single-threaded actor context - no synchronization needed here.
     topic_path_cache: LruCache<ArcStr, Arc<TopicPath>>,
     client: AsyncClient,
@@ -77,6 +77,7 @@ impl<T> SubscriptionManagerActor<T>
 where
     T: Send + Sync + 'static,
 {
+    #[must_use]
     pub fn spawn(
         client: AsyncClient,
         topic_path_cache_capacity: NonZeroUsize,
@@ -122,7 +123,7 @@ where
                         match cmd {
                         Command::Send(message) => self.handle_send(message).await,
                         Command::Subscribe(topic, config, response_tx) => {
-                            self.handle_subscribe(topic, config, response_tx).await
+                            self.handle_subscribe(topic, config, response_tx).await;
                         },
                         Command::ResubscribeAll(response_tx) => {
                             self.handle_resubscribe_all(response_tx).await;
@@ -146,7 +147,7 @@ where
         }
         info!("SubscriptionManagerActor: Exiting run loop");
         // Cleanup remaining subscriptions
-        self.cleanup_active_subscriptions().await
+        self.cleanup_active_subscriptions().await;
     }
 
     async fn handle_slow_send(&mut self, slow_send_res: Result<SlowSendResult<T>, JoinError>) {
@@ -276,7 +277,7 @@ where
                 .subscribe(mqtt_topic.as_str(), qos.to_rumqttc())
                 .await
             {
-                Ok(_) => {
+                Ok(()) => {
                     debug!(topic = %mqtt_topic, qos = ?qos, "Successfully resubscribed");
                 }
                 Err(err) => {
@@ -324,13 +325,12 @@ where
     async fn handle_send(&mut self, (topic_str, data): RawMessageType<T>) {
         let topic_arcstr = ArcStr::from(topic_str);
         // First level cache: TopicPath creation from string (this actor's cache)
-        let topic_path = match self.topic_path_cache.get(&topic_arcstr) {
-            Some(path) => path.clone(),
-            None => {
-                let path = Arc::new(TopicPath::new(topic_arcstr.clone()));
-                self.topic_path_cache.put(topic_arcstr, path.clone());
-                path
-            }
+        let topic_path = if let Some(path) = self.topic_path_cache.get(&topic_arcstr) {
+            path.clone()
+        } else {
+            let path = Arc::new(TopicPath::new(topic_arcstr.clone()));
+            self.topic_path_cache.put(topic_arcstr, path.clone());
+            path
         };
 
         // Second level cache: TopicMatch results are cached inside TopicPatternPath (per-pattern cache)
@@ -352,7 +352,7 @@ where
                 }
             };
             match sender.try_send((topic_match, Arc::clone(&data))) {
-                Ok(_) => (),
+                Ok(()) => (),
                 Err(TrySendError::Closed(_)) => {
                     closed_subscribers.push(*id);
                 }
@@ -379,7 +379,7 @@ where
             }
         }
         for closed_id in closed_subscribers {
-            self.handle_unsubscribe(&closed_id).await
+            self.handle_unsubscribe(&closed_id).await;
         }
     }
 }
@@ -391,7 +391,7 @@ pub struct SubscriptionManagerController {
 
 impl SubscriptionManagerController {
     pub async fn shutdown(self) -> Result<(), JoinError> {
-        let _ = self.shutdown_tx.send(()).inspect_err(|_| {
+        let _ = self.shutdown_tx.send(()).inspect_err(|()| {
             warn!("SubscriptionManagerController: Shutdown signal already sent");
         });
         self.join_handler.await.inspect_err(|e| {

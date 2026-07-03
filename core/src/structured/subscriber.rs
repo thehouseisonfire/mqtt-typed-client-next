@@ -67,7 +67,7 @@ where
     SerializerType: Default + Clone + Send + Sync + MessageSerializer<PayloadType>,
 {
     /// Creates a structured subscriber from a typed MQTT subscriber.
-    pub fn new(inner: MqttSubscriber<PayloadType, SerializerType>) -> Self {
+    pub const fn new(inner: MqttSubscriber<PayloadType, SerializerType>) -> Self {
         Self {
             inner,
             _phantom: PhantomData,

@@ -16,7 +16,7 @@ pub struct TypedLastWill<T> {
 
 impl<T> TypedLastWill<T> {
     /// Creates a new Last Will and Testament message.
-    pub fn new(topic: String, payload: T) -> Self {
+    pub const fn new(topic: String, payload: T) -> Self {
         Self {
             payload,
             qos: QoS::AtLeastOnce,
@@ -25,14 +25,14 @@ impl<T> TypedLastWill<T> {
         }
     }
 
-    /// Sets the QoS level for the LWT message.
-    pub fn qos(mut self, qos: QoS) -> Self {
+    /// Sets the `QoS` level for the LWT message.
+    pub const fn qos(mut self, qos: QoS) -> Self {
         self.qos = qos;
         self
     }
 
     /// Sets the retain flag for the LWT message.
-    pub fn retain(mut self, retain: bool) -> Self {
+    pub const fn retain(mut self, retain: bool) -> Self {
         self.retain = retain;
         self
     }

@@ -1,6 +1,6 @@
-//! Quality of Service (QoS) levels for MQTT
+//! Quality of Service (`QoS`) levels for MQTT
 //!
-//! Defines the three standard MQTT QoS levels independent of any specific
+//! Defines the three standard MQTT `QoS` levels independent of any specific
 //! MQTT client implementation.
 //!
 //! This module provides conversions to/from popular MQTT client libraries:
@@ -9,11 +9,11 @@
 //! - `ntex-mqtt` - Enable with feature `ntex-mqtt`
 //!
 //! These features only add **type conversions** between [`QoS`] and the client's
-//! own QoS type — they pull in the client crate purely for its types and do not
+//! own `QoS` type — they pull in the client crate purely for its types and do not
 //! drive any connection. How that client itself is built stays under your
 //! control: this crate depends on each with `default-features = false`, so it
 //! never forces a native toolchain on you. In particular `paho-mqtt` links a
-//! C library — its default `bundled` feature builds it from source (needs CMake)
+//! C library — its default `bundled` feature builds it from source (needs `CMake`)
 //! while otherwise it expects a system-installed Paho C library. Since you would
 //! only enable the `paho-mqtt` feature when you already use `paho-mqtt` as your
 //! client, Cargo's (additive) feature unification applies your own build choice
@@ -30,16 +30,16 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
 pub enum QoS {
-    /// QoS 0: At most once delivery (fire and forget)
+    /// `QoS` 0: At most once delivery (fire and forget)
     AtMostOnce = 0,
-    /// QoS 1: At least once delivery (acknowledged delivery)
+    /// `QoS` 1: At least once delivery (acknowledged delivery)
     AtLeastOnce = 1,
-    /// QoS 2: Exactly once delivery (assured delivery)
+    /// `QoS` 2: Exactly once delivery (assured delivery)
     ExactlyOnce = 2,
 }
 
 impl QoS {
-    /// Convert to rumqttc QoS type
+    /// Convert to rumqttc `QoS` type
     ///
     /// # Example
     /// ```ignore
@@ -47,15 +47,16 @@ impl QoS {
     /// let rumqttc_qos = qos.to_rumqttc();
     /// ```
     #[cfg(any(feature = "rumqttc", feature = "rumqttc-v4", feature = "rumqttc-v5"))]
-    pub fn to_rumqttc(self) -> crate::rumqttc::QoS {
+    #[must_use]
+    pub const fn to_rumqttc(self) -> crate::rumqttc::QoS {
         match self {
-            QoS::AtMostOnce => crate::rumqttc::QoS::AtMostOnce,
-            QoS::AtLeastOnce => crate::rumqttc::QoS::AtLeastOnce,
-            QoS::ExactlyOnce => crate::rumqttc::QoS::ExactlyOnce,
+            Self::AtMostOnce => crate::rumqttc::QoS::AtMostOnce,
+            Self::AtLeastOnce => crate::rumqttc::QoS::AtLeastOnce,
+            Self::ExactlyOnce => crate::rumqttc::QoS::ExactlyOnce,
         }
     }
 
-    /// Convert to paho-mqtt QoS type
+    /// Convert to paho-mqtt `QoS` type
     ///
     /// # Example
     /// ```ignore
@@ -63,15 +64,16 @@ impl QoS {
     /// let paho_qos = qos.to_paho_mqtt();
     /// ```
     #[cfg(feature = "paho-mqtt")]
-    pub fn to_paho_mqtt(self) -> paho_mqtt::QoS {
+    #[must_use]
+    pub const fn to_paho_mqtt(self) -> paho_mqtt::QoS {
         match self {
-            QoS::AtMostOnce => paho_mqtt::QoS::AtMostOnce,
-            QoS::AtLeastOnce => paho_mqtt::QoS::AtLeastOnce,
-            QoS::ExactlyOnce => paho_mqtt::QoS::ExactlyOnce,
+            Self::AtMostOnce => paho_mqtt::QoS::AtMostOnce,
+            Self::AtLeastOnce => paho_mqtt::QoS::AtLeastOnce,
+            Self::ExactlyOnce => paho_mqtt::QoS::ExactlyOnce,
         }
     }
 
-    /// Convert to ntex-mqtt QoS type
+    /// Convert to ntex-mqtt `QoS` type
     ///
     /// # Example
     /// ```ignore
@@ -79,11 +81,12 @@ impl QoS {
     /// let ntex_qos = qos.to_ntex_mqtt();
     /// ```
     #[cfg(feature = "ntex-mqtt")]
-    pub fn to_ntex_mqtt(self) -> ntex_mqtt::QoS {
+    #[must_use]
+    pub const fn to_ntex_mqtt(self) -> ntex_mqtt::QoS {
         match self {
-            QoS::AtMostOnce => ntex_mqtt::QoS::AtMostOnce,
-            QoS::AtLeastOnce => ntex_mqtt::QoS::AtLeastOnce,
-            QoS::ExactlyOnce => ntex_mqtt::QoS::ExactlyOnce,
+            Self::AtMostOnce => ntex_mqtt::QoS::AtMostOnce,
+            Self::AtLeastOnce => ntex_mqtt::QoS::AtLeastOnce,
+            Self::ExactlyOnce => ntex_mqtt::QoS::ExactlyOnce,
         }
     }
 }
@@ -92,9 +95,9 @@ impl QoS {
 impl From<crate::rumqttc::QoS> for QoS {
     fn from(qos: crate::rumqttc::QoS) -> Self {
         match qos {
-            crate::rumqttc::QoS::AtMostOnce => QoS::AtMostOnce,
-            crate::rumqttc::QoS::AtLeastOnce => QoS::AtLeastOnce,
-            crate::rumqttc::QoS::ExactlyOnce => QoS::ExactlyOnce,
+            crate::rumqttc::QoS::AtMostOnce => Self::AtMostOnce,
+            crate::rumqttc::QoS::AtLeastOnce => Self::AtLeastOnce,
+            crate::rumqttc::QoS::ExactlyOnce => Self::ExactlyOnce,
         }
     }
 }
@@ -103,9 +106,9 @@ impl From<crate::rumqttc::QoS> for QoS {
 impl From<paho_mqtt::QoS> for QoS {
     fn from(qos: paho_mqtt::QoS) -> Self {
         match qos {
-            paho_mqtt::QoS::AtMostOnce => QoS::AtMostOnce,
-            paho_mqtt::QoS::AtLeastOnce => QoS::AtLeastOnce,
-            paho_mqtt::QoS::ExactlyOnce => QoS::ExactlyOnce,
+            paho_mqtt::QoS::AtMostOnce => Self::AtMostOnce,
+            paho_mqtt::QoS::AtLeastOnce => Self::AtLeastOnce,
+            paho_mqtt::QoS::ExactlyOnce => Self::ExactlyOnce,
         }
     }
 }
@@ -114,9 +117,9 @@ impl From<paho_mqtt::QoS> for QoS {
 impl From<ntex_mqtt::QoS> for QoS {
     fn from(qos: ntex_mqtt::QoS) -> Self {
         match qos {
-            ntex_mqtt::QoS::AtMostOnce => QoS::AtMostOnce,
-            ntex_mqtt::QoS::AtLeastOnce => QoS::AtLeastOnce,
-            ntex_mqtt::QoS::ExactlyOnce => QoS::ExactlyOnce,
+            ntex_mqtt::QoS::AtMostOnce => Self::AtMostOnce,
+            ntex_mqtt::QoS::AtLeastOnce => Self::AtLeastOnce,
+            ntex_mqtt::QoS::ExactlyOnce => Self::ExactlyOnce,
         }
     }
 }
@@ -124,9 +127,9 @@ impl From<ntex_mqtt::QoS> for QoS {
 impl fmt::Display for QoS {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            QoS::AtMostOnce => write!(f, "QoS0"),
-            QoS::AtLeastOnce => write!(f, "QoS1"),
-            QoS::ExactlyOnce => write!(f, "QoS2"),
+            Self::AtMostOnce => write!(f, "QoS0"),
+            Self::AtLeastOnce => write!(f, "QoS1"),
+            Self::ExactlyOnce => write!(f, "QoS2"),
         }
     }
 }

@@ -41,13 +41,13 @@ impl TopicParam {
         }
     }
 
-    pub fn is_struct_field(&self) -> bool {
+    pub const fn is_struct_field(&self) -> bool {
         self.struct_field_type.is_some()
     }
 
     fn is_string_type(ty: &syn::Type) -> bool {
         matches!(ty, syn::Type::Path(path)
-		  if path.path.segments.last().map(|s| s.ident == "String").unwrap_or(false))
+		  if path.path.segments.last().is_some_and(|s| s.ident == "String"))
     }
 
     #[cfg(test)]
@@ -63,7 +63,7 @@ impl TopicParam {
     pub fn build_topic_params(
         topic_pattern: &TopicPatternPath,
         field_types: &std::collections::HashMap<String, syn::Type>,
-    ) -> Vec<TopicParam> {
+    ) -> Vec<Self> {
         topic_pattern
             .iter()
             .filter(|item| item.is_wildcard())
@@ -75,7 +75,7 @@ impl TopicParam {
                     .and_then(|param_name| field_types.get(param_name))
                     .cloned();
 
-                TopicParam {
+                Self {
                     name,
                     wildcard_index,
                     struct_field_type: field_type,
@@ -163,7 +163,7 @@ impl StructAnalysisContext {
                     let is_topic_param = topic_pattern
                         .iter()
                         .filter(|item| item.is_wildcard())
-                        .filter_map(|item| item.param_name())
+                        .filter_map(mqtt_typed_client_core::topic::TopicPatternItem::param_name)
                         .any(|param_name| param_name == field_name);
 
                     if !is_topic_param {
@@ -178,7 +178,7 @@ impl StructAnalysisContext {
             let named_params: Vec<_> = topic_pattern
                 .iter()
                 .filter(|item| item.is_wildcard())
-                .filter_map(|item| item.param_name())
+                .filter_map(mqtt_typed_client_core::topic::TopicPatternItem::param_name)
                 .collect();
 
             return Err(syn::Error::new_spanned(

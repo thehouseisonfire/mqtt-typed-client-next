@@ -16,7 +16,8 @@ pub struct Subscriber<T> {
 
 impl<T> Subscriber<T> {
     /// Creates a new subscriber with the given channels.
-    pub fn new(
+    #[must_use]
+    pub const fn new(
         receiver: Receiver<MessageType<T>>,
         unsubscribe_tx: Sender<SubscriptionId>,
         id: SubscriptionId,
@@ -66,7 +67,7 @@ impl<T> Drop for Subscriber<T> {
     fn drop(&mut self) {
         if let Some(unsubscribe_tx) = self.unsubscribe_tx.take() {
             match unsubscribe_tx.try_send(self.id) {
-                Ok(_) => {
+                Ok(()) => {
                     debug!(
                         subscription_id = ?self.id,
                         "Subscription unsubscribed in Drop"

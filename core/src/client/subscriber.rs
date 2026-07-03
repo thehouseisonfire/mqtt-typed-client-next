@@ -31,7 +31,7 @@ where
     F: MessageSerializer<T>,
 {
     /// Creates typed subscriber from raw byte subscriber.
-    pub fn new(subscriber: Subscriber<Bytes>, serializer: F) -> Self {
+    pub const fn new(subscriber: Subscriber<Bytes>, serializer: F) -> Self {
         Self {
             subscriber,
             serializer,
