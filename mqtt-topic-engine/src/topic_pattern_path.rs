@@ -5,7 +5,6 @@
 //! with bound parameter values, and renders back to the wire MQTT pattern.
 
 use std::collections::HashSet;
-use std::convert::TryFrom;
 use std::fmt::{self, Display, Write};
 use std::slice::Iter;
 use std::sync::Arc;
@@ -213,10 +212,9 @@ impl TopicPatternPath {
         if let Some(hash_pos) = segments
             .iter()
             .position(|s| matches!(*s, TopicPatternItem::Hash(_)))
+            && hash_pos != segments.len() - 1
         {
-            if hash_pos != segments.len() - 1 {
-                return Err(TopicPatternError::hash_position(topic_pattern.as_str()));
-            }
+            return Err(TopicPatternError::hash_position(topic_pattern.as_str()));
         }
         Ok(pattern)
     }

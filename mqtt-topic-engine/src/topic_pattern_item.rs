@@ -1,7 +1,6 @@
 //! MQTT topic pattern item types and functionality
 
 use std::borrow::Cow;
-use std::convert::TryFrom;
 
 use arcstr::Substr;
 use thiserror::Error;

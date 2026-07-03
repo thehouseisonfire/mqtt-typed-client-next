@@ -119,8 +119,11 @@ where
                     self.handle_slow_send(slow_send_res).await;
                 }
                 cmd = self.command_rx.recv() => {
-                    if let Some(cmd) = cmd {
-                        match cmd {
+                    let Some(cmd) = cmd else {
+                        info!("SubscriptionManagerActor: Command channel closed, exiting");
+                        break;
+                    };
+                    match cmd {
                         Command::Send(message) => self.handle_send(message).await,
                         Command::Subscribe(topic, config, response_tx) => {
                             self.handle_subscribe(topic, config, response_tx).await;
@@ -129,19 +132,15 @@ where
                             self.handle_resubscribe_all(response_tx).await;
                         }
                     }
-                    } else {
-                        info!("SubscriptionManagerActor: Command channel closed, exiting");
-                        break;
-                    }
                 }
                 subs_id = self.unsubscribe_rx.recv() => {
-                    if let Some(subs_id) = subs_id {
-                        self.handle_unsubscribe(&subs_id).await;
-                    } else {
+                    let Some(subs_id) = subs_id else {
                         // NOTE: This should never happen since actor holds unsubscribe_tx
                         // But keeping for defensive programming
                         warn!("Unsubscribe channel unexpectedly closed");
-                    }
+                        continue;
+                    };
+                    self.handle_unsubscribe(&subs_id).await;
                 }
             }
         }
