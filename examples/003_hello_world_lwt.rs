@@ -11,7 +11,7 @@
 //! cargo run --example 003_hello_world_lwt -- --publisher
 //! ```
 
-#![allow(clippy::exit)]
+#![expect(clippy::exit)]
 mod shared;
 
 use std::env;
@@ -34,7 +34,6 @@ pub struct GreetingTopic {
 }
 
 #[tokio::main]
-#[allow(clippy::exit)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     shared::tracing::setup(None);
 

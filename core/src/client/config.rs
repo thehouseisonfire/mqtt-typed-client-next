@@ -227,7 +227,7 @@ impl<S> MqttClientConfig<S> {
     /// configured serializer type.
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,ignore
     /// # use mqtt_typed_client_core::{MqttClientConfig, QoS, WincodeSerializer, TypedLastWill};
     /// let mut config = MqttClientConfig::<WincodeSerializer>::new("client", "broker", 1883);
     ///

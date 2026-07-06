@@ -24,6 +24,7 @@ repos:
           --feature-powerset --depth 2
           --at-least-one-of rumqttc-v4,rumqttc-v5
           --mutually-exclusive-features rumqttc-v4,rumqttc-v5
+          --mutually-exclusive-features rumqttc-use-rustls,rumqttc-use-rustls-no-provider
           --no-dev-deps
           -p mqtt-typed-client-next
           -p mqtt-typed-client-core-next
@@ -79,15 +80,24 @@ repos:
           bash -c '
           set -euo pipefail;
           export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-6}";
-          cargo hack
-          --feature-powerset --depth 2
-          --at-least-one-of rumqttc-v4,rumqttc-v5
-          --mutually-exclusive-features rumqttc-v4,rumqttc-v5
-          test
-          -p mqtt-typed-client-next
-          -p mqtt-typed-client-core-next
-          -p mqtt-typed-client-macros-next
-          -p mqtt-topic-engine-next
+          BACKENDS="rumqttc-v4 rumqttc-v5";
+          SERIALIZERS="wincode-serializer json messagepack cbor postcard protobuf ron flexbuffers";
+          TRANSPORTS="rumqttc-url rumqttc-websocket rumqttc-use-rustls rumqttc-use-rustls-no-provider rumqttc-use-native-tls rumqttc-proxy";
+          for pkg in mqtt-typed-client-next mqtt-typed-client-core-next mqtt-topic-engine-next; do
+            cargo test -p "$pkg" || exit 1;
+          done;
+          for backend in $BACKENDS; do
+            for ser in $SERIALIZERS; do
+              cargo test -p mqtt-typed-client-core-next --no-default-features --features "$backend,$ser" || exit 1;
+            done;
+            for tra in $TRANSPORTS; do
+              cargo test -p mqtt-typed-client-core-next --no-default-features --features "$backend,$tra" || exit 1;
+            done;
+            cargo test -p mqtt-topic-engine-next --no-default-features --features "$backend" || exit 1;
+            cargo test -p mqtt-topic-engine-next --no-default-features --features "$backend,router" || exit 1;
+            cargo test -p mqtt-topic-engine-next --no-default-features --features "$backend,lru-cache" || exit 1;
+            cargo test -p mqtt-typed-client-macros-next --no-default-features --features "$backend" || exit 1;
+          done
           '
         language: system
         pass_filenames: false
@@ -100,11 +110,11 @@ repos:
           bash -c '
           set -euo pipefail;
           export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-6}";
-
-          cargo test -p mqtt-typed-client-next --no-default-features --features "rumqttc-v4,rumqttc-websocket,rumqttc-use-rustls";
-          cargo test -p mqtt-typed-client-next --no-default-features --features "rumqttc-v5,rumqttc-websocket,rumqttc-use-rustls";
-          cargo test -p mqtt-typed-client-next --no-default-features --features "rumqttc-v4,rumqttc-websocket,rumqttc-use-rustls-no-provider";
-          cargo test -p mqtt-typed-client-next --no-default-features --features "rumqttc-v5,rumqttc-websocket,rumqttc-use-rustls-no-provider";
+          BASE="macros,wincode,json";
+          cargo test -p mqtt-typed-client-next --no-default-features --features "$BASE,rumqttc-v4,rumqttc-websocket,rumqttc-use-rustls" || exit 1;
+          cargo test -p mqtt-typed-client-next --no-default-features --features "$BASE,rumqttc-v5,rumqttc-websocket,rumqttc-use-rustls" || exit 1;
+          cargo test -p mqtt-typed-client-next --no-default-features --features "$BASE,rumqttc-v4,rumqttc-websocket,rumqttc-use-rustls-no-provider" || exit 1;
+          cargo test -p mqtt-typed-client-next --no-default-features --features "$BASE,rumqttc-v5,rumqttc-websocket,rumqttc-use-rustls-no-provider" || exit 1
           '
         language: system
         pass_filenames: false

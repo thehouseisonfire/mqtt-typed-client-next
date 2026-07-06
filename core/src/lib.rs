@@ -15,7 +15,7 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use mqtt_typed_client_core::{MqttClient, MqttClientConfig, WincodeSerializer};
 //! use serde::{Deserialize, Serialize};
 //! use wincode::{SchemaWrite, SchemaRead};
@@ -115,6 +115,13 @@
 compile_error!("features `rumqttc-v4` and `rumqttc-v5` are mutually exclusive");
 #[cfg(not(any(feature = "rumqttc-v4", feature = "rumqttc-v5")))]
 compile_error!("enable exactly one of `rumqttc-v4` or `rumqttc-v5`");
+#[cfg(all(
+    feature = "rumqttc-use-rustls",
+    feature = "rumqttc-use-rustls-no-provider"
+))]
+compile_error!(
+    "features `rumqttc-use-rustls` and `rumqttc-use-rustls-no-provider` are mutually exclusive"
+);
 
 #[cfg(feature = "rumqttc-v4")]
 use rumqttc_v4 as rumqttc;

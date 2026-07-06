@@ -41,10 +41,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut config = MqttClientConfig::<WincodeSerializer>::new(&client_id, &host, port);
 
-    config
-        .connection
-        .set_keep_alive(30)
-        .set_clean_session(false);
+    config.connection.set_keep_alive(30);
+    #[cfg(feature = "rumqttc-v4")]
+    config.connection.set_clean_session(false);
+    #[cfg(feature = "rumqttc-v5")]
+    config.connection.set_clean_start(false);
 
     config.settings.event_loop_capacity = 50;
     config.settings.connection_timeout_millis = 8000;

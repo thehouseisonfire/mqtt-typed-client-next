@@ -4,8 +4,6 @@
 //! result of matching such a topic against a pattern, exposing the captured
 //! positional and named parameters.
 
-#![allow(clippy::missing_docs_in_private_items)]
-
 use std::fmt;
 use std::ops::Range;
 use std::sync::Arc;

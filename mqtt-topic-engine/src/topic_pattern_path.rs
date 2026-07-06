@@ -497,7 +497,6 @@ impl TopicPatternPath {
         self.try_match(Arc::new(TopicPath::new(topic)))
     }
 
-    #[allow(clippy::missing_docs_in_private_items)]
     fn try_match_internal(&self, topic: Arc<TopicPath>) -> Result<TopicMatch, TopicMatchError> {
         let mut topic_index = 0;
         let mut params = SmallVec::new();

@@ -5,7 +5,6 @@
 //! all payloads matching a concrete topic. The [`Len`] trait lets a node prune
 //! empty payload containers during removal.
 
-#![allow(clippy::missing_docs_in_private_items)]
 use std::collections::{HashMap, HashSet};
 
 use arcstr::Substr;

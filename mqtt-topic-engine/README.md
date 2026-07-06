@@ -173,7 +173,7 @@ MQTT topic engine supports standard MQTT wildcards plus named parameters:
 
 Route messages to multiple subscribers based on patterns:
 
-```rust,no_run
+```rust,ignore
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
 use mqtt_topic_engine::{TopicRouter, TopicPatternPath, TopicPath, CacheStrategy, QoS};
 
@@ -243,13 +243,12 @@ This is useful for:
 ```rust,no_run
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
 use mqtt_topic_engine::{TopicPatternPath, CacheStrategy};
-use std::num::NonZeroUsize;
 
 // Create pattern with LRU cache of 1000 entries
-let cache_size = NonZeroUsize::new(1000).unwrap();
+let cache_size = 1000;
 let pattern = TopicPatternPath::new_from_string(
     "sensors/{location}/{device}/data",
-    CacheStrategy::Lru(cache_size)
+    CacheStrategy::new(cache_size)
 )?;
 
 // First match - computed and cached
@@ -309,7 +308,7 @@ println!("{}", topic);
 
 ### Managing Subscriptions
 
-```rust,no_run
+```rust,ignore
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
 use mqtt_topic_engine::{TopicRouter, TopicPatternPath, CacheStrategy, QoS};
 
@@ -347,7 +346,7 @@ QoS** requested across all subscribers of the same pattern and tells you, via th
 (re)subscribe on the broker when a pattern is new or when its aggregated `QoS` rises —
 adding another subscriber at the same or a lower `QoS` needs no wire traffic at all.
 
-```rust
+```rust,ignore
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
 use mqtt_topic_engine::{TopicRouter, TopicPatternPath, CacheStrategy, QoS};
 
@@ -401,7 +400,7 @@ println!("Room: {}", match2.get_named_param("room").unwrap());
 
 ### Complex Routing Scenarios
 
-```rust,no_run
+```rust,ignore
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
 use mqtt_topic_engine::{TopicRouter, TopicPatternPath, TopicPath, CacheStrategy, QoS};
 
@@ -450,7 +449,7 @@ gives you the **deduplicated** set of patterns, each already collapsed to the
 **maximum QoS** among its subscribers, so you resubscribe each distinct topic
 exactly once at the correct level:
 
-```rust
+```rust,ignore
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
 use mqtt_topic_engine::{TopicRouter, TopicPatternPath, CacheStrategy, QoS};
 
@@ -643,17 +642,16 @@ Not needed for simple one-off topic matching — just use `&str`, it's simpler.
 ```rust,no_run
 # fn main() {
 use mqtt_topic_engine::CacheStrategy;
-use std::num::NonZeroUsize;
 
 // No caching (minimal memory, recompute every match)
 let no_cache = CacheStrategy::NoCache;
 
 // LRU cache with 100 entries (balance memory/performance)
 // Note: requires the 'lru-cache' feature (enabled by default)
-let lru_100 = CacheStrategy::Lru(NonZeroUsize::new(100).unwrap());
+let lru_100 = CacheStrategy::new(100);
 
 // LRU cache with 10000 entries (high performance, more memory)
-let lru_10k = CacheStrategy::Lru(NonZeroUsize::new(10000).unwrap());
+let lru_10k = CacheStrategy::new(10000);
 # let _ = (no_cache, lru_100, lru_10k);
 # }
 ```

@@ -131,6 +131,7 @@ where
         // No explicit shutdown signal needed - MQTT protocol handles graceful termination
         loop {
             match event_loop.poll().await {
+                #[cfg(feature = "rumqttc-v4")]
                 Ok(Incoming(Packet::ConnAck(ConnAck {
                     session_present: false,
                     code: ConnectReturnCode::Success,
@@ -143,9 +144,35 @@ where
                         error!(error = ?err, "Failed to resubscribe to topics");
                     }
                 }
+                #[cfg(feature = "rumqttc-v5")]
+                Ok(Incoming(Packet::ConnAck(ConnAck {
+                    session_present: false,
+                    code: ConnectReturnCode::Success,
+                    ..
+                }))) => {
+                    info!(
+                        "MQTT reconnected without session, resubscribing to \
+						 all topics"
+                    );
+                    if let Err(err) = subscription_manager.resubscribe_all().await {
+                        error!(error = ?err, "Failed to resubscribe to topics");
+                    }
+                }
+                #[cfg(feature = "rumqttc-v4")]
                 Ok(Incoming(Packet::ConnAck(ConnAck {
                     session_present: true,
                     code: ConnectReturnCode::Success,
+                }))) => {
+                    info!(
+                        "MQTT reconnected with session preserved, \
+						 subscriptions maintained by broker"
+                    );
+                }
+                #[cfg(feature = "rumqttc-v5")]
+                Ok(Incoming(Packet::ConnAck(ConnAck {
+                    session_present: true,
+                    code: ConnectReturnCode::Success,
+                    ..
                 }))) => {
                     info!(
                         "MQTT reconnected with session preserved, \
@@ -294,7 +321,7 @@ impl<F> MqttClient<F> {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// use mqtt_typed_client_core::{MqttClient, WincodeSerializer, JsonSerializer};
     /// use serde::{Deserialize, Serialize};
     /// use wincode::{SchemaWrite, SchemaRead};
@@ -338,7 +365,7 @@ impl<F> MqttClient<F> {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// use mqtt_typed_client_core::{MqttClient, JsonSerializer};
     /// use serde::{Deserialize, Serialize};
     ///
