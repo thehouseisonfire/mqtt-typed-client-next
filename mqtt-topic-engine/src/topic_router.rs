@@ -230,7 +230,7 @@ impl<T> TopicRouter<T> {
     /// The QoS-raising counterpart is currently inlined in
     /// [`add_subscription`](Self::add_subscription); when downgrade is
     /// implemented, the two should share this helper.
-    #[allow(dead_code)] // Kept as the helper for the planned QoS-downgrade in unsubscribe()
+    #[expect(dead_code)] // Kept as the helper for the planned QoS-downgrade in unsubscribe()
     fn get_max_qos_for_topic(
         &self,
         topic: &TopicPatternPath,

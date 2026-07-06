@@ -1,5 +1,5 @@
 #![allow(clippy::missing_docs_in_private_items)]
-#![allow(missing_docs)]
+#![expect(missing_docs)]
 use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
 use crate::rumqttc::AsyncClient;
