@@ -32,6 +32,7 @@ pub use mqtt_topic_engine::{
     TopicResult,
     TopicRouter,
     TopicRouterError,
+    UnsubscribeAction,
     // Error utilities
     limits,
     validation,
@@ -86,5 +87,7 @@ pub mod topic_matcher {
 ///
 /// Re-exported from mqtt-topic-engine for backward compatibility.
 pub mod topic_router {
-    pub use mqtt_topic_engine::topic_router::{SubscriptionId, TopicRouter, TopicRouterError};
+    pub use mqtt_topic_engine::topic_router::{
+        SubscriptionId, TopicRouter, TopicRouterError, UnsubscribeAction,
+    };
 }

@@ -22,7 +22,7 @@ use tracing::{debug, error, info, warn};
 use super::error::{SendError, SubscriptionError};
 use super::subscriber::Subscriber;
 use crate::topic::{
-    SubscriptionId, TopicPatternPath, TopicRouter,
+    SubscriptionId, TopicPatternPath, TopicRouter, UnsubscribeAction,
     topic_match::{TopicMatch, TopicPath},
 };
 
@@ -301,22 +301,37 @@ where
 
     async fn handle_unsubscribe(&mut self, id: &SubscriptionId) {
         match self.topic_router.unsubscribe(id) {
-            Ok((topic_empty, topic_pattern)) => {
-                if topic_empty {
-                    let res = self
-                        .client
-                        .unsubscribe(topic_pattern.mqtt_pattern().as_str())
-                        .await;
+            Ok(action) => match action {
+                UnsubscribeAction::NoBrokerAction { topic } => {
+                    debug!(topic_pattern = %topic, "Broker subscription unchanged after local unsubscribe");
+                }
+                UnsubscribeAction::Unsubscribe { topic } => {
+                    let res = self.client.unsubscribe(topic.mqtt_pattern().as_str()).await;
                     if let Err(err) = res {
                         error!(
-                            topic_pattern = %topic_pattern,
+                            topic_pattern = %topic,
                             error = ?err,
                             "Failed to unsubscribe from MQTT topic pattern"
                         );
                     }
-                    debug!(topic_pattern = %topic_pattern, "Topic pattern now empty");
+                    debug!(topic_pattern = %topic, "Topic pattern now empty");
                 }
-            }
+                UnsubscribeAction::Resubscribe { topic, qos } => {
+                    let res = self
+                        .client
+                        .subscribe(topic.mqtt_pattern().as_str(), qos.to_rumqttc())
+                        .await;
+                    if let Err(err) = res {
+                        error!(
+                            topic_pattern = %topic,
+                            qos = ?qos,
+                            error = ?err,
+                            "Failed to downgrade MQTT topic pattern QoS"
+                        );
+                    }
+                    debug!(topic_pattern = %topic, qos = ?qos, "Downgraded MQTT topic pattern QoS");
+                }
+            },
             Err(err) => {
                 error!(subscription_id = ?id, error = ?err, "Failed to unsubscribe");
             }

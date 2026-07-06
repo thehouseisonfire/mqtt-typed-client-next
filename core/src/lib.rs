@@ -231,7 +231,9 @@ pub mod advanced {
     // High-level routing errors only
     pub use crate::routing::SubscriptionError;
     // Topic utilities
-    pub use crate::topic::{SubscriptionId, TopicRouterError, limits, validation};
+    pub use crate::topic::{
+        SubscriptionId, TopicRouterError, UnsubscribeAction, limits, validation,
+    };
     pub use crate::{
         CacheStrategy, MqttPublisher, MqttSubscriber, SubscriptionConfig, TopicError,
         TopicPatternPath,

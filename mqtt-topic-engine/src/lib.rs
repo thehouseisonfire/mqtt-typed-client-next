@@ -47,4 +47,4 @@ pub use topic_matcher::TopicMatcherError;
 pub use topic_pattern_item::{TopicPatternError, TopicPatternItem};
 pub use topic_pattern_path::{TopicFormatError, TopicPatternPath};
 #[cfg(feature = "router")]
-pub use topic_router::{SubscriptionId, TopicRouter, TopicRouterError};
+pub use topic_router::{SubscriptionId, TopicRouter, TopicRouterError, UnsubscribeAction};

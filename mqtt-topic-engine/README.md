@@ -310,7 +310,7 @@ println!("{}", topic);
 
 ```rust,ignore
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
-use mqtt_topic_engine::{TopicRouter, TopicPatternPath, CacheStrategy, QoS};
+use mqtt_topic_engine::{TopicRouter, TopicPatternPath, CacheStrategy, QoS, UnsubscribeAction};
 
 let mut router = TopicRouter::new();
 
@@ -327,12 +327,18 @@ if needs_mqtt_subscribe {
     println!("New subscription needed on broker");
 }
 
-// Later: remove subscription
-let (needs_mqtt_unsubscribe, pattern) = router.unsubscribe(&sub_id)?;
-
-if needs_mqtt_unsubscribe {
-    // Unsubscribe from MQTT broker
-    println!("Should unsubscribe from broker: {}", pattern.mqtt_pattern());
+// Later: remove subscription and mirror the broker action
+match router.unsubscribe(&sub_id)? {
+    UnsubscribeAction::NoBrokerAction { .. } => {}
+    UnsubscribeAction::Unsubscribe { topic } => {
+        println!("Should unsubscribe from broker: {}", topic.mqtt_pattern());
+    }
+    UnsubscribeAction::Resubscribe { topic, qos } => {
+        println!(
+            "Should resubscribe broker topic {} at {qos}",
+            topic.mqtt_pattern()
+        );
+    }
 }
 # Ok(())
 # }
@@ -345,6 +351,10 @@ QoS** requested across all subscribers of the same pattern and tells you, via th
 `needs_subscribe` flag, exactly when a broker action is required. You only need to
 (re)subscribe on the broker when a pattern is new or when its aggregated `QoS` rises —
 adding another subscriber at the same or a lower `QoS` needs no wire traffic at all.
+When unsubscribing, the router returns an [`UnsubscribeAction`] so callers can
+unsubscribe the broker topic when the last local subscriber is removed, resubscribe
+at a lower `QoS` when the removed subscriber was the only high-`QoS` subscriber, or
+skip broker traffic when the effective subscription is unchanged.
 
 ```rust,ignore
 # fn main() -> Result<(), Box<dyn std::error::Error>> {

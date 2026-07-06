@@ -89,6 +89,30 @@ impl Display for SubscriptionId {
     }
 }
 
+/// Broker action needed after removing a local subscription.
+#[derive(Debug, Clone)]
+pub enum UnsubscribeAction {
+    /// The effective broker subscription did not change.
+    NoBrokerAction {
+        /// The topic pattern that still has local subscribers.
+        topic: TopicPatternPath,
+    },
+
+    /// No local subscribers remain for this topic pattern.
+    Unsubscribe {
+        /// The topic pattern to unsubscribe from on the broker.
+        topic: TopicPatternPath,
+    },
+
+    /// Local subscribers remain, but their maximum requested `QoS` is lower.
+    Resubscribe {
+        /// The topic pattern to resubscribe to on the broker.
+        topic: TopicPatternPath,
+        /// The new maximum `QoS` requested by remaining local subscribers.
+        qos: QoS,
+    },
+}
+
 type SubscriptionTable<T> = HashMap<SubscriptionId, T>;
 //type RouteCallback = Box<dyn for<'a, 'b> Fn(&'a str, &'b [u8]) + Send + Sync>;
 
@@ -163,30 +187,51 @@ impl<T> TopicRouter<T> {
 
     /// Removes the subscription identified by `id`.
     ///
-    /// Returns `(topic_now_empty, pattern)`: `topic_now_empty` is `true` when no
-    /// other subscription remains for the pattern, so the caller should
-    /// unsubscribe it on the broker. Fails with
+    /// Returns the broker action required after the removal. Fails with
     /// [`TopicRouterError::SubscriptionNotFound`] if `id` is unknown.
     pub fn unsubscribe(
         &mut self,
         id: &SubscriptionId,
-    ) -> Result<(bool, TopicPatternPath), TopicRouterError> {
-        // TODO(enhancement): Implement QoS downgrade.
-        // We currently keep the higher QoS on the broker after a removal (safe
-        // but potentially wasteful). To implement: after removing this id,
-        // recompute the max QoS among the remaining subscribers for the pattern
-        // — `get_max_qos_for_topic` below is the ready-made helper for that — and
-        // mirror the QoS-raising logic in `add_subscription`.
+    ) -> Result<UnsubscribeAction, TopicRouterError> {
         let topic = self.subscriptions.remove(id);
         match topic {
-            Some((topic_pattern, _qos)) => {
+            Some((topic_pattern, removed_qos)) => {
                 let resolved_segments = topic_pattern.resolve_bound_segments();
-                let topic_now_empty =
-                    self.topic_matcher
-                        .update_node(&resolved_segments, |table| {
-                            table.remove(id);
-                        })?;
-                Ok((topic_now_empty, topic_pattern))
+                let subscriptions = &self.subscriptions;
+                let mut pattern_now_empty = false;
+                let mut remaining_qos = None;
+                self.topic_matcher
+                    .update_node(&resolved_segments, |table| {
+                        table.remove(id);
+                        pattern_now_empty = table.is_empty();
+                        if !pattern_now_empty {
+                            remaining_qos = Some(Self::get_max_qos_for_topic(
+                                subscriptions,
+                                &topic_pattern,
+                                table,
+                            ));
+                        }
+                    })?;
+                if pattern_now_empty {
+                    Ok(UnsubscribeAction::Unsubscribe {
+                        topic: topic_pattern,
+                    })
+                } else if let Some(qos) = remaining_qos {
+                    if qos < removed_qos {
+                        Ok(UnsubscribeAction::Resubscribe {
+                            topic: topic_pattern,
+                            qos,
+                        })
+                    } else {
+                        Ok(UnsubscribeAction::NoBrokerAction {
+                            topic: topic_pattern,
+                        })
+                    }
+                } else {
+                    Err(TopicRouterError::internal_state_corrupted(format!(
+                        "Topic matcher reported non-empty state but no subscribers remained for topic {topic_pattern}"
+                    )))
+                }
             }
             None => Err(TopicRouterError::subscription_not_found(*id)),
         }
@@ -223,15 +268,8 @@ impl<T> TopicRouter<T> {
     }
 
     /// Finds the maximum `QoS` among the subscribers to a single topic pattern.
-    ///
-    /// Intentionally unused for now: it is the ready-made helper for the `QoS`
-    /// downgrade described in the TODO inside [`unsubscribe`](Self::unsubscribe).
-    /// The QoS-raising counterpart is currently inlined in
-    /// [`add_subscription`](Self::add_subscription); when downgrade is
-    /// implemented, the two should share this helper.
-    #[expect(dead_code)] // Kept as the helper for the planned QoS-downgrade in unsubscribe()
     fn get_max_qos_for_topic(
-        &self,
+        subscriptions: &SubscriptionTable<(TopicPatternPath, QoS)>,
         topic: &TopicPatternPath,
         topic_subscriptions: &SubscriptionTable<T>,
     ) -> QoS {
@@ -244,7 +282,7 @@ impl<T> TopicRouter<T> {
         topic_subscriptions
             .keys()
             .map(|id| {
-                self.subscriptions
+                subscriptions
                     .get(id)
                     .unwrap_or_else(|| {
                         panic!(
@@ -309,5 +347,119 @@ impl<T> TopicRouter<T> {
         self.subscriptions
             .get(id)
             .ok_or(TopicRouterError::subscription_not_found(*id))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TopicRouter, TopicRouterError, UnsubscribeAction};
+    use crate::{CacheStrategy, QoS, TopicPatternPath};
+
+    fn pattern(value: &str) -> TopicPatternPath {
+        TopicPatternPath::new_from_string(value, CacheStrategy::NoCache).unwrap()
+    }
+
+    fn assert_topic(topic: &TopicPatternPath, expected: &str) {
+        assert_eq!(topic.mqtt_pattern().as_str(), expected);
+    }
+
+    #[test]
+    fn unsubscribe_only_subscriber_requires_broker_unsubscribe() {
+        let mut router = TopicRouter::new();
+        let (_, id) = router.add_subscription(pattern("sensors/+/data"), QoS::AtLeastOnce, "h1");
+
+        match router.unsubscribe(&id).unwrap() {
+            UnsubscribeAction::Unsubscribe { topic } => {
+                assert_topic(&topic, "sensors/+/data");
+            }
+            action => panic!("expected broker unsubscribe, got {action:?}"),
+        }
+    }
+
+    #[test]
+    fn unsubscribe_lower_qos_subscriber_keeps_broker_subscription_unchanged() {
+        let mut router = TopicRouter::new();
+        let (_, high_id) =
+            router.add_subscription(pattern("sensors/+/data"), QoS::ExactlyOnce, "h1");
+        let (_, low_id) = router.add_subscription(pattern("sensors/+/data"), QoS::AtMostOnce, "h2");
+
+        match router.unsubscribe(&low_id).unwrap() {
+            UnsubscribeAction::NoBrokerAction { topic } => {
+                assert_topic(&topic, "sensors/+/data");
+            }
+            action => panic!("expected no broker action, got {action:?}"),
+        }
+
+        assert!(router.get_topic_by_id(&high_id).is_ok());
+    }
+
+    #[test]
+    fn unsubscribe_only_high_qos_subscriber_requires_broker_downgrade() {
+        let mut router = TopicRouter::new();
+        let (_, low_id) = router.add_subscription(pattern("sensors/+/data"), QoS::AtMostOnce, "h1");
+        let (_, mid_id) =
+            router.add_subscription(pattern("sensors/+/data"), QoS::AtLeastOnce, "h2");
+        let (_, high_id) =
+            router.add_subscription(pattern("sensors/+/data"), QoS::ExactlyOnce, "h3");
+
+        match router.unsubscribe(&high_id).unwrap() {
+            UnsubscribeAction::Resubscribe { topic, qos } => {
+                assert_topic(&topic, "sensors/+/data");
+                assert_eq!(qos, QoS::AtLeastOnce);
+            }
+            action => panic!("expected broker resubscribe, got {action:?}"),
+        }
+
+        assert!(router.get_topic_by_id(&low_id).is_ok());
+        assert!(router.get_topic_by_id(&mid_id).is_ok());
+    }
+
+    #[test]
+    fn unsubscribe_one_of_multiple_high_qos_subscribers_keeps_broker_subscription_unchanged() {
+        let mut router = TopicRouter::new();
+        let (_, high_id_1) =
+            router.add_subscription(pattern("sensors/+/data"), QoS::ExactlyOnce, "h1");
+        let (_, high_id_2) =
+            router.add_subscription(pattern("sensors/+/data"), QoS::ExactlyOnce, "h2");
+        let (_, low_id) = router.add_subscription(pattern("sensors/+/data"), QoS::AtMostOnce, "h3");
+
+        match router.unsubscribe(&high_id_1).unwrap() {
+            UnsubscribeAction::NoBrokerAction { topic } => {
+                assert_topic(&topic, "sensors/+/data");
+            }
+            action => panic!("expected no broker action, got {action:?}"),
+        }
+
+        assert!(router.get_topic_by_id(&high_id_2).is_ok());
+        assert!(router.get_topic_by_id(&low_id).is_ok());
+    }
+
+    #[test]
+    fn unsubscribe_unknown_subscription_returns_not_found() {
+        let mut router = TopicRouter::new();
+        let (_, id) = router.add_subscription(pattern("sensors/+/data"), QoS::AtMostOnce, "h1");
+
+        router.unsubscribe(&id).unwrap();
+        assert_eq!(
+            router.unsubscribe(&id).unwrap_err(),
+            TopicRouterError::subscription_not_found(id)
+        );
+    }
+
+    #[test]
+    fn unsubscribe_empty_pattern_while_other_patterns_exist_unsubscribes_removed_pattern() {
+        let mut router = TopicRouter::new();
+        let (_, removed_id) =
+            router.add_subscription(pattern("sensors/+/data"), QoS::AtMostOnce, "h1");
+        let (_, other_id) = router.add_subscription(pattern("alerts/#"), QoS::AtLeastOnce, "h2");
+
+        match router.unsubscribe(&removed_id).unwrap() {
+            UnsubscribeAction::Unsubscribe { topic } => {
+                assert_topic(&topic, "sensors/+/data");
+            }
+            action => panic!("expected broker unsubscribe, got {action:?}"),
+        }
+
+        assert!(router.get_topic_by_id(&other_id).is_ok());
     }
 }
