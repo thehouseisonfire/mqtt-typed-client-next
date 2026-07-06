@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Implement QoS downgrade on unsubscribe: replace boolean return from `TopicRouter::unsubscribe` with `UnsubscribeAction` enum (`Unsubscribe`, `Resubscribe`, `NoBrokerAction`) for explicit broker action control
 - Fork crate to be compatible with `rumqttc-next` v4 and v5
 - Switch default serializer from `bincode` to `wincode`
 - Port examples from upstream, adapted for `WincodeSerializer` and `rumqttc-v4`
