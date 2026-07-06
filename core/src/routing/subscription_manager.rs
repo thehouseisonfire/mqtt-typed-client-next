@@ -177,7 +177,6 @@ where
     /// 1. Send unsubscribe commands to MQTT broker for all topics
     /// 2. Process remaining slow sends with timeout
     /// 3. Cleanup internal data structures
-    #[allow(clippy::iter_over_hash_type)]
     async fn cleanup_active_subscriptions(&mut self) {
         // Step 1: Send unsubscribe commands to MQTT broker for all active topics
         // This prevents new messages from being received
@@ -273,7 +272,6 @@ where
         let subscriptions = self.topic_router.get_topics_for_resubscribe();
         let mut failed_topics = Vec::new();
 
-        #[allow(clippy::iter_over_hash_type)]
         for (mqtt_topic, qos) in subscriptions {
             match self
                 .client

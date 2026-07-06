@@ -5,8 +5,6 @@
 //! - TLS transport setup with rustls
 //! - Self-signed certificate handling for development
 
-#![allow(clippy::mem_forget)]
-
 mod shared;
 
 use mqtt_typed_client::rustls::{ClientConfig, RootCertStore};
@@ -17,7 +15,6 @@ use rustls_pki_types::pem::PemObject;
 use serde::{Deserialize, Serialize};
 use wincode::{SchemaRead, SchemaWrite};
 
-#[allow(clippy::mem_forget)]
 #[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug)]
 struct Message {
     text: String,

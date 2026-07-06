@@ -5,8 +5,6 @@
 //! - Type-safe message routing
 //! - Automatic serialization/deserialization
 
-#![allow(clippy::mem_forget)]
-
 mod shared;
 
 use mqtt_typed_client::{MqttClient, WincodeSerializer};
@@ -14,7 +12,6 @@ use mqtt_typed_client_macros::mqtt_topic;
 use serde::{Deserialize, Serialize};
 use wincode::{SchemaRead, SchemaWrite};
 
-#[allow(clippy::mem_forget)]
 #[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug)]
 struct Message {
     text: String,

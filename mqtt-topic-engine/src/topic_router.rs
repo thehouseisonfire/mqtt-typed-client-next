@@ -272,7 +272,6 @@ impl<T> TopicRouter<T> {
     /// Get all active topic patterns with their maximum `QoS`
     /// Returns unique topics (grouped by pattern) with the highest `QoS` among all subscribers
     #[must_use]
-    #[allow(clippy::iter_over_hash_type)]
     pub fn get_topics_for_resubscribe(&self) -> HashMap<ArcStr, QoS> {
         let mut result: HashMap<ArcStr, QoS> = HashMap::new();
 

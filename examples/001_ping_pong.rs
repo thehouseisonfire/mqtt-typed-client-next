@@ -12,8 +12,6 @@
 //! cargo run --example 001_ping_pong -- --publisher
 //! ```
 
-#![allow(clippy::mem_forget)]
-
 mod shared;
 
 use std::time::Duration;
@@ -24,7 +22,6 @@ use rand::{RngExt, rng};
 use serde::{Deserialize, Serialize};
 use wincode::{SchemaRead, SchemaWrite};
 
-#[allow(clippy::mem_forget)]
 #[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug)]
 enum PingPongMessage {
     Ping(usize),

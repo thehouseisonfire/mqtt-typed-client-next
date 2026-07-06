@@ -3,8 +3,6 @@
 //! Demonstrates using different serializers for different topics
 //! via the #[mqtt_topic] macro with serializer attribute.
 
-#![allow(clippy::mem_forget)]
-
 mod shared;
 
 use mqtt_typed_client::{JsonSerializer, MqttClient, WincodeSerializer};
@@ -12,7 +10,6 @@ use mqtt_typed_client_macros::mqtt_topic;
 use serde::{Deserialize, Serialize};
 use wincode::{SchemaRead, SchemaWrite};
 
-#[allow(clippy::mem_forget)]
 #[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug)]
 struct BinaryData {
     value: u64,

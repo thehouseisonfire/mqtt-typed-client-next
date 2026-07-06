@@ -387,7 +387,6 @@ mod tests {
     }
 
     #[cfg(feature = "wincode-serializer")]
-    #[allow(clippy::mem_forget)]
     #[test]
     fn wincode_round_trip() {
         #[derive(wincode::SchemaWrite, wincode::SchemaRead, Debug, PartialEq)]
