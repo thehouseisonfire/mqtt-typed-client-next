@@ -1164,6 +1164,7 @@ dependencies = [
 name = "mqtt-typed-client-next"
 version = "0.2.0"
 dependencies = [
+ "bytes",
  "chrono",
  "dotenvy",
  "mqtt-typed-client-core-next",

@@ -97,9 +97,11 @@ rumqttc-proxy = ["rumqttc-v4?/proxy", "rumqttc-v5?/proxy", "mqtt-typed-client-co
 wincode = { version = "0.5.5", features = ["derive"] }
 dotenvy = "0.15"
 rand = "0.10.2"
-rumqttc-v4 = { workspace = true, features = ["url", "use-rustls"] }
+rumqttc-v4 = { workspace = true }
+rumqttc-v5 = { workspace = true }
 rustls-pki-types = { version = "1.9", features = ["std"] }
-serde = "1.0.219"
+serde = { version = "1.0.219", features = ["derive"] }
+bytes = "1"
 tokio = { version = "1.0", features = ["full"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
@@ -114,3 +116,15 @@ required-features = ["rumqttc-use-rustls"]
 [[example]]
 name = "100_all_serializers_demo"
 required-features = ["wincode", "json", "messagepack", "cbor", "postcard", "ron", "flexbuffers", "protobuf"]
+
+[[example]]
+name = "rumqttc_v4_typed_client"
+required-features = ["rumqttc-v4", "macros", "json"]
+
+[[example]]
+name = "rumqttc_v5_connect_properties"
+required-features = ["rumqttc-v5", "macros", "json"]
+
+[[example]]
+name = "rumqttc_v5_publish_properties"
+required-features = ["rumqttc-v5", "macros", "json"]
