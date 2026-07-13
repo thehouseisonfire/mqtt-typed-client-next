@@ -11,16 +11,16 @@
 //! - **Graceful Shutdown**: Proper resource cleanup and connection termination
 //! - **Async/Await Support**: Built on top of `tokio` for async operations
 //! - **Error Handling**: Comprehensive error types with retry logic
-//! - **Message Serialization**: Pluggable serialization (Wincode included)
+//! - **Message Serialization**: Pluggable serialization (wincode included)
 //!
 //! ## Quick Start
 //!
 //! ```rust,ignore
-//! use mqtt_typed_client_core::{MqttClient, MqttClientConfig, WincodeSerializer};
+//! use mqtt_typed_client_core::{MqttClient, MqttClientConfig, WincodeSerializer, ReceiveEvent};
 //! use serde::{Deserialize, Serialize};
-//! use wincode::{SchemaWrite, SchemaRead};
+//! use wincode::{SchemaRead, SchemaWrite};
 //!
-//! #[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug)]
+//! #[derive(Serialize, Deserialize, SchemaRead, SchemaWrite, Debug)]
 //! struct SensorData {
 //!     temperature: f64,
 //!     humidity: f64,
@@ -34,11 +34,12 @@
 //!     ).await?;
 //!
 //!     // Advanced configuration
+//!     use mqtt_typed_client_core::SessionPolicy;
 //!     let mut config = MqttClientConfig::new("my_client", "broker.hivemq.com", 1883);
-//!     config.connection.set_keep_alive(30);
-//!     config.connection.set_clean_session(true);
+//!     config.connection.keep_alive = std::time::Duration::from_secs(30);
+//!     config.connection.session = SessionPolicy::CleanPerConnection;
 //!     config.settings.topic_cache_size = 500;
-//!     
+//!
 //!     let (client, connection) = MqttClient::<WincodeSerializer>::connect_with_config(config).await?;
 //!
 //!     // Create a typed publisher
@@ -52,10 +53,19 @@
 //!     publisher.publish(&data).await?;
 //!
 //!     // Receive data
-//!     if let Some((topic, result)) = subscriber.receive().await {
-//!         match result {
-//!             Ok(sensor_data) => println!("Received from {}: {:?}", topic, sensor_data),
-//!             Err(e) => eprintln!("Deserialization error: {:?}", e),
+//!     if let Some(event) = subscriber.receive().await {
+//!         match event {
+//!             ReceiveEvent::Message(msg) => {
+//!                 println!("Received from {} (qos {:?}): {:?}",
+//!                     msg.topic, msg.meta.qos, msg.payload)
+//!             }
+//!             ReceiveEvent::DecodeFailed(f) => {
+//!                 eprintln!("Deserialization error at {}: {:?}", f.topic, f.error)
+//!             }
+//!             ReceiveEvent::Lagged { missed } => {
+//!                 eprintln!("Lagged: {missed} messages dropped")
+//!             }
+//!             _ => {}
 //!         }
 //!     }
 //!
@@ -109,27 +119,33 @@
 //! ```
 
 #![warn(missing_docs)]
+#![allow(
+	clippy::items_after_statements,
+	clippy::missing_errors_doc,
+	clippy::too_long_first_doc_paragraph,
+	clippy::too_many_lines,
+	clippy::type_repetition_in_bounds
+)]
 
-// Core modules
 #[cfg(all(feature = "rumqttc-v4", feature = "rumqttc-v5"))]
 compile_error!("features `rumqttc-v4` and `rumqttc-v5` are mutually exclusive");
 #[cfg(not(any(feature = "rumqttc-v4", feature = "rumqttc-v5")))]
 compile_error!("enable exactly one of `rumqttc-v4` or `rumqttc-v5`");
-#[cfg(all(
-    feature = "rumqttc-use-rustls",
-    feature = "rumqttc-use-rustls-no-provider"
-))]
+#[cfg(all(feature = "tls-rustls", feature = "tls-rustls-no-provider"))]
 compile_error!(
-    "features `rumqttc-use-rustls` and `rumqttc-use-rustls-no-provider` are mutually exclusive"
+	"features `tls-rustls` and `tls-rustls-no-provider` are mutually exclusive"
 );
 
 #[cfg(feature = "rumqttc-v4")]
-use rumqttc_v4 as rumqttc;
+pub(crate) use rumqttc_v4 as rumqttc;
 #[cfg(all(feature = "rumqttc-v5", not(feature = "rumqttc-v4")))]
-use rumqttc_v5 as rumqttc;
+pub(crate) use rumqttc_v5 as rumqttc;
 
+// Core modules
 pub mod client;
 pub mod connection;
+pub mod connection_state;
+pub mod message_meta;
 pub mod message_serializer;
 pub mod routing;
 /// Structured MQTT subscribers with automatic topic parameter extraction
@@ -138,10 +154,24 @@ pub mod topic;
 
 // === Core Public API ===
 // Main client types
-pub use client::{ClientSettings, MqttClient, MqttClientConfig, MqttClientError, TypedLastWill};
+// SEMVER-EXEMPT raw backend access (escape hatch)
+#[cfg(feature = "unstable-backend-api")]
+pub use client::backend;
+pub use client::{
+	ClientSettings, ConnectionOptions, Credentials, MqttClient,
+	MqttClientConfig, MqttClientError, ProtocolVersion, RustlsClientConfig,
+	SessionPolicy, TlsConfig, Transport, TypedLastWill,
+};
 // High-level typed publishers and subscribers
-pub use client::{MqttPublisher, MqttSubscriber, SubscriptionBuilder};
+pub use client::{
+	DecodeFailure, IncomingMessage, MqttPublisher, MqttSubscriber,
+	SubscriptionBuilder,
+};
 pub use connection::MqttConnection;
+// Observable connection lifecycle state
+pub use connection_state::{ConnectionState, DisconnectReason};
+// Per-message metadata
+pub use message_meta::{MessageMeta, Mqtt5Meta};
 // Message serialization
 #[cfg(feature = "cbor")]
 pub use message_serializer::CborSerializer;
@@ -160,20 +190,31 @@ pub use message_serializer::ProtobufSerializer;
 pub use message_serializer::RonSerializer;
 #[cfg(feature = "wincode-serializer")]
 pub use message_serializer::WincodeSerializer;
+// Protocol-neutral QoS (from mqtt-topic-engine); conversion to the backend's
+// QoS happens internally at the rumqttc boundary.
+pub use mqtt_topic_engine::QoS;
 // === Advanced API ===
 // Advanced subscription configuration
-pub use routing::SubscriptionConfig;
-// Re-export rumqttc types for advanced configuration
-pub use crate::rumqttc::MqttOptions;
-// Essential external types
-pub use crate::rumqttc::QoS;
-// Transport selector for custom connections (TCP / TLS / WebSocket). Always
-// available; the TLS/WebSocket variants require the corresponding `rumqttc-*`
-// feature on the `mqtt-typed-client` crate.
-pub use crate::rumqttc::Transport;
+pub use routing::{ReceiveEvent, SubscriptionConfig};
+// The backend's rustls stack, so a `rustls::ClientConfig` for
+// `Transport::Tls(..)` can be built without a version-matched rustls
+// dependency of your own. The rustls major version tracks the backend's TLS
+// stack (documented semver-coupled exception).
+#[cfg(all(
+	feature = "rumqttc-v4",
+	any(feature = "tls-rustls", feature = "tls-rustls-no-provider")
+))]
+pub use rumqttc_v4::tokio_rustls::rustls;
+#[cfg(all(
+	feature = "rumqttc-v5",
+	not(feature = "rumqttc-v4"),
+	any(feature = "tls-rustls", feature = "tls-rustls-no-provider")
+))]
+pub use rumqttc_v5::tokio_rustls::rustls;
 // Structured subscribers (macro support)
 pub use structured::{
-    FromMqttMessage, MessageConversionError, MqttTopicSubscriber, extract_topic_parameter,
+	FromMqttMessage, MessageConversionError, MqttTopicSubscriber,
+	extract_topic_parameter,
 };
 pub use topic::CacheStrategy;
 // Topic pattern types (for manual pattern handling)
@@ -193,26 +234,28 @@ pub type Result<T> = std::result::Result<T, MqttClientError>;
 /// ```
 pub mod prelude {
 
-    #[cfg(feature = "cbor")]
-    pub use crate::CborSerializer;
-    #[cfg(feature = "flexbuffers")]
-    pub use crate::FlexbuffersSerializer;
-    #[cfg(feature = "json")]
-    pub use crate::JsonSerializer;
-    #[cfg(feature = "messagepack")]
-    pub use crate::MessagePackSerializer;
-    #[cfg(feature = "postcard")]
-    pub use crate::PostcardSerializer;
-    #[cfg(feature = "protobuf")]
-    pub use crate::ProtobufSerializer;
-    #[cfg(feature = "ron")]
-    pub use crate::RonSerializer;
-    #[cfg(feature = "wincode-serializer")]
-    pub use crate::WincodeSerializer;
-    pub use crate::{
-        ClientSettings, MessageSerializer, MqttClient, MqttClientConfig, MqttClientError,
-        MqttConnection, MqttOptions, QoS, Result, SubscriptionBuilder, TypedLastWill,
-    };
+	#[cfg(feature = "cbor")]
+	pub use crate::CborSerializer;
+	#[cfg(feature = "flexbuffers")]
+	pub use crate::FlexbuffersSerializer;
+	#[cfg(feature = "json")]
+	pub use crate::JsonSerializer;
+	#[cfg(feature = "messagepack")]
+	pub use crate::MessagePackSerializer;
+	#[cfg(feature = "postcard")]
+	pub use crate::PostcardSerializer;
+	#[cfg(feature = "protobuf")]
+	pub use crate::ProtobufSerializer;
+	#[cfg(feature = "ron")]
+	pub use crate::RonSerializer;
+	#[cfg(feature = "wincode-serializer")]
+	pub use crate::WincodeSerializer;
+	pub use crate::{
+		ClientSettings, ConnectionOptions, ConnectionState, DisconnectReason,
+		MessageSerializer, MqttClient, MqttClientConfig, MqttClientError,
+		MqttConnection, QoS, Result, SessionPolicy, SubscriptionBuilder,
+		Transport, TypedLastWill,
+	};
 }
 
 /// Advanced types and utilities for complex use cases
@@ -228,16 +271,16 @@ pub mod prelude {
 /// ```
 pub mod advanced {
 
-    // High-level routing errors only
-    pub use crate::routing::SubscriptionError;
-    // Topic utilities
-    pub use crate::topic::{
-        SubscriptionId, TopicRouterError, UnsubscribeAction, limits, validation,
-    };
-    pub use crate::{
-        CacheStrategy, MqttPublisher, MqttSubscriber, SubscriptionConfig, TopicError,
-        TopicPatternPath,
-    };
+	// High-level routing errors only
+	pub use crate::routing::SubscriptionError;
+	// Topic utilities
+	pub use crate::topic::{
+		SubscriptionId, TopicRouterError, limits, validation,
+	};
+	pub use crate::{
+		CacheStrategy, MqttPublisher, MqttSubscriber, ReceiveEvent,
+		SubscriptionConfig, TopicError, TopicPatternPath,
+	};
 }
 
 /// Error types used throughout the library
@@ -250,9 +293,16 @@ pub mod advanced {
 /// ```
 pub mod errors {
 
-    // High-level routing errors
-    pub use crate::routing::SubscriptionError;
-    // Topic-related errors - specific types for advanced usage
-    pub use crate::topic::{TopicMatcherError, TopicRouterError};
-    pub use crate::{MessageConversionError, MqttClientError, TopicError, TopicPatternError};
+	// Client and connection errors
+	pub use crate::client::{
+		BackendError, ClientOperationError, ConnectReasonCode,
+		ConnectionEstablishmentError, UrlParseError,
+	};
+	// High-level routing errors
+	pub use crate::routing::SubscriptionError;
+	// Topic-related errors - specific types for advanced usage
+	pub use crate::topic::{TopicMatcherError, TopicRouterError};
+	pub use crate::{
+		MessageConversionError, MqttClientError, TopicError, TopicPatternError,
+	};
 }

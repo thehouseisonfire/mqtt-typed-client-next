@@ -3,9 +3,7 @@
 #![doc = include_str!("../README.md")]
 //!
 #![warn(missing_docs)]
-
-#[cfg(all(feature = "rumqttc-v4", feature = "rumqttc-v5"))]
-compile_error!("features `rumqttc-v4` and `rumqttc-v5` are mutually exclusive");
+#![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
 
 #[cfg(feature = "rumqttc-v4")]
 use rumqttc_v4 as rumqttc;
@@ -47,4 +45,4 @@ pub use topic_matcher::TopicMatcherError;
 pub use topic_pattern_item::{TopicPatternError, TopicPatternItem};
 pub use topic_pattern_path::{TopicFormatError, TopicPatternPath};
 #[cfg(feature = "router")]
-pub use topic_router::{SubscriptionId, TopicRouter, TopicRouterError, UnsubscribeAction};
+pub use topic_router::{SubscriptionId, TopicRouter, TopicRouterError};

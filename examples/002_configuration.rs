@@ -2,91 +2,120 @@
 //!
 //! Demonstrates how to configure MQTT client parameters:
 //! - Connection settings (broker, credentials, keep-alive, clean session)
-//! - Client behavior (event loop capacity, timeouts, cache sizes)
+//! - Client behavior (event loop capacity, timeouts, cache sizes, channel capacities)
 //! - Publisher settings (QoS levels, message retention)
 //! - Subscriber settings (QoS levels, topic caching)
+//!
+//! This example shows a single sensor publishing temperature data
+//! and a monitor receiving it, with detailed configuration explanations.
 
 mod shared;
 
 use std::time::Duration;
 
-use mqtt_typed_client::{MqttClient, MqttClientConfig, QoS, WincodeSerializer};
+use mqtt_typed_client::{
+	MqttClient, MqttClientConfig, QoS, ReceiveEvent, SessionPolicy,
+	WincodeSerializer,
+};
 use mqtt_typed_client_macros::mqtt_topic;
-use serde::{Deserialize, Serialize};
 use wincode::{SchemaRead, SchemaWrite};
 
-#[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug)]
+/// Sensor data payload containing temperature measurement
+#[derive(SchemaWrite, SchemaRead, Debug)]
 struct TemperatureReading {
-    temperature: f32,
+	temperature: f32,
 }
 
+/// Topic structure for temperature sensor data
+///
+/// Pattern: "sensors/temperature/{location}/{sensor_id}"
+/// Example: "sensors/temperature/kitchen/sensor_001"
+/// Payload: TemperatureReading with temperature value
 #[derive(Debug)]
 #[mqtt_topic("sensors/temperature/{location}/{sensor_id}")]
 pub struct TemperatureTopic {
-    location: String,
-    sensor_id: String,
-    payload: TemperatureReading,
+	location: String,
+	sensor_id: String,
+	payload: TemperatureReading,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    shared::tracing::setup(None);
+	// Initialize tracing - respects RUST_LOG environment variable
+	shared::tracing::setup(None);
 
-    println!("Starting MQTT Configuration Example...\n");
+	println!("Starting MQTT Configuration Example...\n");
 
-    let (host, port) = shared::config::get_mqtt_broker_host_port();
-    let client_id = shared::config::get_client_id("temp_sensor");
+	// === 1. CONNECTION CONFIGURATION ===
+	// Get host and port from environment configuration
+	let (host, port) = shared::config::get_mqtt_broker_host_port();
+	let client_id = shared::config::get_client_id("temp_sensor");
 
-    println!("Configuring MQTT client for {host}:{port}");
+	println!("Configuring MQTT client for {host}:{port}");
 
-    let mut config = MqttClientConfig::<WincodeSerializer>::new(&client_id, &host, port);
+	let mut config =
+		MqttClientConfig::<WincodeSerializer>::new(&client_id, &host, port);
 
-    config.connection.set_keep_alive(30);
-    #[cfg(feature = "rumqttc-v4")]
-    config.connection.set_clean_session(false);
-    #[cfg(feature = "rumqttc-v5")]
-    config.connection.set_clean_start(false);
+	// Configure connection parameters
+	config.connection.keep_alive = Duration::from_secs(30); // Send ping every 30 seconds
+	config.connection.session = SessionPolicy::Resume; // Resume session on reconnect
+	// config.connection.credentials = Some(Credentials { .. }) // For authenticated brokers
 
-    config.settings.event_loop_capacity = 50;
-    config.settings.connection_timeout_millis = 8000;
-    config.settings.topic_cache_size = 50;
+	// === 2. CLIENT SETTINGS CONFIGURATION ===
+	config.settings.event_loop_capacity = 50; // Channel capacity for event processing
+	config.settings.connection_timeout_millis = 8000; // Connection timeout (8 seconds)
+	config.settings.topic_cache_size = 50; // Maximum cached topic patterns
 
-    let (client, connection) = MqttClient::connect_with_config(config)
-        .await
-        .inspect_err(|e| {
-            shared::config::print_connection_error(&format!("{host}:{port}"), e);
-        })?;
-    println!("Connected with custom configuration\n");
+	// Connect with configuration
+	let (client, connection) = MqttClient::connect_with_config(config)
+		.await
+		.inspect_err(|e| {
+			shared::config::print_connection_error(
+				&format!("{host}:{port}"),
+				e,
+			);
+		})?;
+	println!("✓ Connected with custom configuration\n");
 
-    let topic_client = client.temperature_topic();
-    let mut subscriber = topic_client
-        .subscription()
-        .with_qos(QoS::AtLeastOnce)
-        .with_cache(10)
-        .subscribe()
-        .await?;
+	// === 3. SUBSCRIBER CONFIGURATION ===
+	let topic_client = client.temperature_topic();
+	let mut subscriber = topic_client
+		.subscription()
+		// QoS 1: Guaranteed delivery (at least once)
+		.with_qos(QoS::AtLeastOnce)
+		// LRU cache for topic matching: improves performance
+		// when the same topic patterns repeat frequently
+		.with_cache(10)
+		.subscribe()
+		.await?;
 
-    println!("Subscribed to temperature sensors with cache\n");
+	println!("✓ Subscribed to temperature sensors with cache\n");
 
-    let publisher = topic_client
-        .get_publisher("kitchen", "sensor_001")?
-        .with_qos(QoS::AtLeastOnce)
-        .with_retain(true);
+	// === 4. PUBLISHER CONFIGURATION ===
+	let publisher = topic_client
+		.get_publisher("kitchen", "sensor_001")?
+		.with_qos(QoS::AtLeastOnce) // QoS 1: Guaranteed delivery (at least once)
+		.with_retain(true); // Store last message for new subscribers
 
-    tokio::time::sleep(Duration::from_millis(100)).await;
+	// Small delay to ensure subscription is ready
+	tokio::time::sleep(Duration::from_millis(100)).await;
 
-    let reading = TemperatureReading { temperature: 22.5 };
-    publisher.publish(&reading).await?;
-    println!("Published temperature reading with retention\n");
+	// === 5. PUBLISH TEMPERATURE DATA ===
+	let reading = TemperatureReading { temperature: 22.5 };
+	publisher.publish(&reading).await?;
+	println!("✓ Published temperature reading with retention\n");
 
-    if let Some(Ok(temp_data)) = subscriber.receive().await {
-        println!("=== Received Configuration Demo ===");
-        println!("  Location: {}", temp_data.location);
-        println!("  Sensor ID: {}", temp_data.sensor_id);
-        println!("  Temperature: {}C", temp_data.payload.temperature);
-    }
+	// === 6. RECEIVE FROM SUBSCRIPTION ===
+	// Wait for message
+	if let Some(ReceiveEvent::Message(temp_data)) = subscriber.receive().await {
+		println!("=== Received Configuration Demo ===");
+		println!("  Location: {}", temp_data.location);
+		println!("  Sensor ID: {}", temp_data.sensor_id);
+		println!("  Temperature: {}°C", temp_data.payload.temperature);
+	}
 
-    connection.shutdown().await?;
-    println!("\nGoodbye!");
-    Ok(())
+	// Graceful shutdown
+	connection.shutdown().await?;
+	println!("\n✓ Goodbye!");
+	Ok(())
 }

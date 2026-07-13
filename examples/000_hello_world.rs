@@ -4,68 +4,100 @@
 //! - Automatic topic parameter parsing with `#[mqtt_topic]` macro
 //! - Type-safe message routing
 //! - Automatic serialization/deserialization
+//!
+//! Topic pattern: "greetings/{language}/{sender}"
+//! Example: "greetings/rust/alice" → GreetingTopic { language: "rust", sender: "alice", payload: Message }
 
 mod shared;
 
-use mqtt_typed_client::{MqttClient, WincodeSerializer};
+use mqtt_typed_client::{MqttClient, ReceiveEvent, WincodeSerializer};
 use mqtt_typed_client_macros::mqtt_topic;
-use serde::{Deserialize, Serialize};
 use wincode::{SchemaRead, SchemaWrite};
 
-#[derive(Serialize, Deserialize, SchemaWrite, SchemaRead, Debug)]
+/// Message payload - automatically serialized/deserialized with wincode
+#[derive(SchemaWrite, SchemaRead, Debug)]
 struct Message {
-    text: String,
+	text: String,
 }
 
+/// Topic structure with automatic parameter extraction from MQTT topic path
+///
+/// Pattern: "greetings/{language}/{sender}"
+/// - Subscription: "greetings/+/+" (subscribes to all greetings regardless of language and sender)
+/// - Publishing: client.publish("rust", "alice", &msg) → "greetings/rust/alice"
+/// - Receiving: "greetings/rust/alice" → GreetingTopic { language: "rust", sender: "alice", payload: deserialized_msg }
 #[mqtt_topic("greetings/{language}/{sender}")]
 pub struct GreetingTopic {
-    language: String,
-    sender: String,
-    payload: Message,
+	language: String, // Extracted from first topic parameter {language}
+	sender: String,   // Extracted from second topic parameter {sender}
+	payload: Message, // Automatically deserialized message payload
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    shared::tracing::setup(None);
+	// Initialize tracing - respects RUST_LOG environment variable
+	shared::tracing::setup(None);
 
-    println!("Starting MQTT Hello World example...\n");
+	println!("Starting MQTT Hello World example...\n");
 
-    let connection_url = shared::config::build_url("hello_world");
-    println!("Connecting to MQTT broker: {connection_url}");
+	// === 1. CONNECTION ===
+	// Connect to MQTT broker using WincodeSerializer for efficient binary serialization
+	// URL and client_id are automatically configured from environment or defaults
+	let connection_url = shared::config::build_url("hello_world");
+	println!("Connecting to MQTT broker: {connection_url}");
 
-    let (client, connection) = MqttClient::<WincodeSerializer>::connect(&connection_url)
-        .await
-        .inspect_err(|e| {
-            shared::config::print_connection_error(&connection_url, e);
-        })?;
+	let (client, connection) =
+		MqttClient::<WincodeSerializer>::connect(&connection_url)
+			.await
+			.inspect_err(|e| {
+				shared::config::print_connection_error(&connection_url, e);
+			})?;
 
-    println!("Connected to MQTT broker");
+	println!("Connected to MQTT broker");
 
-    let topic_client = client.greeting_topic();
-    let mut subscriber = topic_client.subscribe().await?;
-    println!("Subscribed to: greetings/+/+");
+	// === 2. TOPIC SUBSCRIPTION ===
+	// Get typed topic client for GreetingTopic structure
+	let topic_client = client.greeting_topic();
 
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+	// Subscribe to all greetings from any language and sender
+	// MQTT pattern: "greetings/+/+" ('+' is wildcard for any single topic level)
+	let mut subscriber = topic_client.subscribe().await?;
 
-    let hello_message = Message {
-        text: "Hello, World!".to_string(),
-    };
+	println!("Subscribed to: greetings/+/+");
 
-    println!("Publishing greeting message to topic: greetings/rust/rustacean");
-    topic_client
-        .publish("rust", "rustacean", &hello_message)
-        .await?;
+	// === 3. MESSAGE PUBLISHING ===
+	// Small delay to ensure that subscription is ready
+	// This is just for demonstration purposes because subscriber
+	// and publisher are in the same process.
+	tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
-    println!("Waiting for greeting message from broker...");
-    if let Some(Ok(greeting)) = subscriber.receive().await {
-        println!("Received greeting:");
-        println!("   Language: {}", greeting.language);
-        println!("   Sender: {}", greeting.sender);
-        println!("   Message: {}", greeting.payload.text);
-    }
+	// Create message
+	let hello_message = Message {
+		text: "Hello, World!".to_string(),
+	};
 
-    connection.shutdown().await?;
-    println!("\nGoodbye!");
+	println!("Publishing greeting message to topic: greetings/rust/rustacean");
 
-    Ok(())
+	// Publish message to topic "greetings/rust/rustacean"
+	// Parameters are automatically inserted into topic pattern
+	topic_client
+		.publish("rust", "rustacean", &hello_message)
+		.await?;
+
+	// === 4. RECEIVING MESSAGES ===
+	println!("Waiting for greeting message from broker...");
+	// Wait for the first received message (our own greeting in this case)
+	if let Some(ReceiveEvent::Message(greeting)) = subscriber.receive().await {
+		println!("Received greeting:");
+		println!("   Language: {}", greeting.language);
+		println!("   Sender: {}", greeting.sender);
+		println!("   Message: {}", greeting.payload.text);
+	}
+
+	// === 5. CLEANUP ===
+	// Gracefully shutdown the connection
+	connection.shutdown().await?;
+	println!("\nGoodbye!");
+
+	Ok(())
 }

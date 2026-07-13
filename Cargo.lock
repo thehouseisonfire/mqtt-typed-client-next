@@ -1109,7 +1109,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-topic-engine-next"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "arcstr",
  "lru",
@@ -1124,7 +1124,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-typed-client-core-next"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arcstr",
  "bytes",
@@ -1133,6 +1133,7 @@ dependencies = [
  "futures",
  "lru",
  "mqtt-topic-engine-next",
+ "mqtt-typed-client-macros-next",
  "postcard",
  "prost",
  "rmp-serde",
@@ -1146,12 +1147,13 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "url",
  "wincode",
 ]
 
 [[package]]
 name = "mqtt-typed-client-macros-next"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "mqtt-typed-client-core-next",
  "proc-macro2",
@@ -1162,7 +1164,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-typed-client-next"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bytes",
  "chrono",
@@ -1173,6 +1175,7 @@ dependencies = [
  "rmp-serde",
  "rumqttc-v4-next",
  "rumqttc-v5-next",
+ "rustls-pemfile",
  "rustls-pki-types",
  "serde",
  "tokio",
@@ -1973,6 +1976,15 @@ dependencies = [
  "rustls-pki-types",
  "schannel",
  "security-framework",
+]
+
+[[package]]
+name = "rustls-pemfile"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dce314e5fee3f39953d46bb63bb8a46d40c2f8fb7cc5a3b6cab2bde9721d6e50"
+dependencies = [
+ "rustls-pki-types",
 ]
 
 [[package]]

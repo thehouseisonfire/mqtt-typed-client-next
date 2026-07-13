@@ -1,0 +1,205 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust:
+          - stable
+          - beta
+          - nightly
+          - 1.85.1  # MSRV
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        components: clippy, rustfmt
+
+    # Swatinem/rust-cache keys on Cargo.toml/Cargo.lock + rustc version and
+    # manages ~/.cargo + target/ itself. We deliberately gitignore Cargo.lock,
+    # which made the old `hashFiles('**/Cargo.lock')` key resolve to an empty
+    # hash (constant key -> the cache froze and never invalidated).
+    - name: Cache cargo and target
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ matrix.rust }}
+
+    - name: Check formatting
+      run: |
+        rustup toolchain install nightly --component rustfmt
+        cargo +nightly fmt --all -- --check
+
+    - name: Run clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+    - name: Build
+      run: cargo build --verbose --all-features
+
+    # Unit + doctests only. Integration tests (tests/) run in the
+    # integration-test job, which has a live broker and enforces it.
+    # (cargo rejects mixing --lib and --doc in one invocation.)
+    - name: Run workspace unit tests (default features, incl. engine)
+      run: cargo test --workspace --lib
+
+    - name: Run root unit tests and doctests (all features)
+      run: |
+        cargo test --all-features --lib
+        cargo test --all-features --doc
+
+    # Engine coverage. paho-mqtt is deliberately excluded — it links a native C
+    # library not present in CI; rumqttc/ntex-mqtt are pure Rust.
+    - name: Run engine doctests and interop features (no paho)
+      run: |
+        cargo test -p mqtt-topic-engine --doc
+        cargo test -p mqtt-topic-engine --features rumqttc,ntex-mqtt --lib
+        cargo test -p mqtt-topic-engine --no-default-features --lib
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      emqx:
+        image: emqx/emqx:latest
+        ports:
+          - 1883:1883
+          - 8883:8883
+        env:
+          EMQX_DASHBOARD__DEFAULT_USERNAME: admin
+          EMQX_DASHBOARD__DEFAULT_PASSWORD: public
+        options: >-
+          --health-cmd "/opt/emqx/bin/emqx ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo and target
+      uses: Swatinem/rust-cache@v2
+
+    # `emqx ping` (service healthcheck) reports the node is up before the MQTT
+    # listener actually accepts connections, so wait for the TCP port directly.
+    - name: Wait for broker
+      run: |
+        for i in $(seq 1 30); do
+          if (exec 3<>/dev/tcp/localhost/1883) 2>/dev/null; then
+            echo "broker accepting connections on 1883"; exit 0
+          fi
+          echo "waiting for broker ($i)"; sleep 2
+        done
+        echo "broker did not become ready in time"; exit 1
+
+    # MQTT_REQUIRE_BROKER turns the tests' graceful no-broker degradation into a
+    # hard failure, so a missing/broken broker can no longer pass silently.
+    - name: Run integration tests
+      run: |
+        cargo test --test serializers_integration --all-features -- --test-threads=1
+        cargo test --test serializer_macro_integration --features macros,bincode,json -- --test-threads=1
+      env:
+        MQTT_REQUIRE_BROKER: "1"
+        MQTT_BROKER_URL: mqtt://localhost:1883
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo and target
+      uses: Swatinem/rust-cache@v2
+
+    - name: Build documentation
+      run: cargo doc --all-features --no-deps
+      env:
+        RUSTDOCFLAGS: -D warnings
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # Prebuilt binaries — avoids compiling cargo-audit/cargo-deny from source
+    # (the old `cargo install` step was ~3 min of the job). Neither tool builds
+    # the project, so a target/ cache would not help here.
+    - name: Install audit tools (prebuilt)
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-audit,cargo-deny
+
+    - name: Security audit
+      run: cargo audit
+
+    - name: Check licenses
+      run: cargo deny check licenses
+
+  examples:
+    name: Examples
+    runs-on: ubuntu-latest
+
+    services:
+      emqx:
+        image: emqx/emqx:latest
+        ports:
+          - 1883:1883
+        env:
+          EMQX_DASHBOARD__DEFAULT_USERNAME: admin
+          EMQX_DASHBOARD__DEFAULT_PASSWORD: public
+        options: >-
+          --health-cmd "/opt/emqx/bin/emqx ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo and target
+      uses: Swatinem/rust-cache@v2
+
+    - name: Wait for broker
+      run: |
+        for i in $(seq 1 30); do
+          if (exec 3<>/dev/tcp/localhost/1883) 2>/dev/null; then
+            echo "broker accepting connections on 1883"; exit 0
+          fi
+          echo "waiting for broker ($i)"; sleep 2
+        done
+        echo "broker did not become ready in time"; exit 1
+
+    - name: Test basic examples
+      run: |
+        timeout 30s cargo run --example 000_hello_world --all-features || echo "Example completed or timed out"
+        timeout 30s cargo run --example 001_ping_pong --all-features || echo "Example completed or timed out"
+      env:
+        # examples/shared/config.rs reads MQTT_BROKER (not MQTT_BROKER_URL)
+        MQTT_BROKER: mqtt://localhost:1883

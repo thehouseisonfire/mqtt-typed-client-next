@@ -7,45 +7,76 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 /// 2. If RUST_LOG_DISABLE=1 - disable tracing completely
 /// 3. If RUST_LOG set - use environment configuration
 /// 4. Otherwise - no tracing (silent)
-#[allow(dead_code)]
+///
+/// # Arguments
+/// * `force_level` - Optional explicit level ("debug", "info", "warn", "error")
+///
+/// # Examples
+/// ```bash
+/// # Environment-driven (standard approach)
+/// RUST_LOG=debug cargo run --example hello_world
+///
+/// # Force disable even if RUST_LOG is set
+/// RUST_LOG_DISABLE=1 cargo run --example hello_world
+///
+/// # Silent by default
+/// cargo run --example hello_world
+/// ```
 pub fn setup(force_level: Option<&str>) {
-    load_env_files();
+	// Load .env files first to make RUST_LOG available
+	load_env_files();
 
-    if std::env::var("RUST_LOG_DISABLE").is_ok() {
-        return;
-    }
+	// Check for explicit disable flag
+	if std::env::var("RUST_LOG_DISABLE").is_ok() {
+		return; // No tracing
+	}
 
-    let filter = if let Some(level) = force_level {
-        tracing_subscriber::EnvFilter::new(level)
-    } else if std::env::var("RUST_LOG").is_ok() {
-        tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into())
-    } else {
-        return;
-    };
+	// Determine the filter to use
+	let filter = if let Some(level) = force_level {
+		// Explicit level provided
+		tracing_subscriber::EnvFilter::new(level)
+	} else if std::env::var("RUST_LOG").is_ok() {
+		// Use environment configuration
+		tracing_subscriber::EnvFilter::try_from_default_env()
+			.unwrap_or_else(|_| "info".into())
+	} else {
+		// No configuration - stay silent
+		return;
+	};
 
-    tracing_subscriber::registry()
-        .with(filter)
-        .with(
-            tracing_subscriber::fmt::layer()
-                .with_target(true)
-                .with_thread_ids(false)
-                .with_thread_names(false)
-                .with_file(false)
-                .with_line_number(false)
-                .compact(),
-        )
-        .init();
+	// Initialize tracing with consistent formatting
+	tracing_subscriber::registry()
+		.with(filter)
+		.with(
+			tracing_subscriber::fmt::layer()
+				.with_target(true)
+				.with_thread_ids(false)
+				.with_thread_names(false)
+				.with_file(false)
+				.with_line_number(false)
+				.compact(),
+		)
+		.init();
 }
 
-/// Setup tracing with specific level
+/// Setup tracing with specific level (convenience function)
+///
+/// Equivalent to `setup(Some(level))`
+///
+/// # Arguments
+/// * `level` - Tracing level: "trace", "debug", "info", "warn", "error"
 #[allow(dead_code)]
 pub fn setup_with_level(level: &str) {
-    setup(Some(level));
+	setup(Some(level));
 }
 
+/// Load .env files with explicit paths
+///
+/// Loads configuration from .env files in the same order as config module.
+/// This ensures consistency between tracing and config loading.
 fn load_env_files() {
-    drop(dotenvy::from_filename("examples/.env"));
-    if std::path::Path::new("examples/.env.local").exists() {
-        drop(dotenvy::from_filename("examples/.env.local"));
-    }
+	drop(dotenvy::from_filename("examples/.env"));
+	if std::path::Path::new("examples/.env.local").exists() {
+		drop(dotenvy::from_filename("examples/.env.local"));
+	}
 }

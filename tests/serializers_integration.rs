@@ -1,0 +1,365 @@
+//! Integration tests for all available serializers
+//!
+//! This test ensures that all implemented serializers can create MQTT clients
+//! and perform basic operations. When MQTT broker is available, also tests
+//! full serialization/deserialization cycle.
+#![cfg(all(
+	feature = "json",
+	feature = "messagepack",
+	feature = "cbor",
+	feature = "postcard",
+	feature = "ron",
+	feature = "flexbuffers",
+	feature = "protobuf"
+))]
+
+use mqtt_typed_client::{
+	CborSerializer, FlexbuffersSerializer, JsonSerializer,
+	MessagePackSerializer, MessageSerializer, MqttClient, PostcardSerializer,
+	ProtobufSerializer, ReceiveEvent, RonSerializer, WincodeSerializer,
+};
+use serde::{Deserialize, Serialize};
+use wincode::{SchemaRead, SchemaWrite};
+
+// Unified test message that works with all serializers
+// Different serializers require different derive macros:
+// - Serde-compatible: Serialize, Deserialize (JSON, MessagePack, CBOR, Postcard, RON, Flexbuffers)
+// - Wincode: SchemaWrite, SchemaRead
+// - Protobuf: requires generated types from .proto files
+// - Cap'n Proto: requires generated types from .capnp files
+#[derive(
+	Serialize, Deserialize, SchemaWrite, SchemaRead, Debug, Clone, PartialEq,
+)]
+struct TestMessage {
+	text: String,
+	id: u32,
+}
+
+#[cfg(test)]
+mod serializer_tests {
+	use super::*;
+
+	// Test all serde-compatible + wincode serializers with unified approach
+	#[tokio::test]
+	async fn test_wincode_serializer() {
+		test_serializer_integration::<WincodeSerializer>("Wincode").await;
+	}
+
+	#[tokio::test]
+	async fn test_json_serializer() {
+		test_serializer_integration::<JsonSerializer>("JSON").await;
+	}
+
+	#[tokio::test]
+	async fn test_messagepack_serializer() {
+		test_serializer_integration::<MessagePackSerializer>("MessagePack")
+			.await;
+	}
+
+	#[tokio::test]
+	async fn test_cbor_serializer() {
+		test_serializer_integration::<CborSerializer>("CBOR").await;
+	}
+
+	#[tokio::test]
+	async fn test_postcard_serializer() {
+		test_serializer_integration::<PostcardSerializer>("Postcard").await;
+	}
+
+	#[tokio::test]
+	async fn test_ron_serializer() {
+		test_serializer_integration::<RonSerializer>("RON").await;
+	}
+
+	#[tokio::test]
+	async fn test_flexbuffers_serializer() {
+		test_serializer_integration::<FlexbuffersSerializer>("Flexbuffers")
+			.await;
+	}
+
+	// Test schema-based serializers (connection only)
+	#[tokio::test]
+	async fn test_protobuf_serializer() {
+		test_connection_only::<ProtobufSerializer>("Protobuf").await;
+	}
+}
+
+/// Broker URL from `MQTT_BROKER_URL` (default `mqtt://localhost:1883`), with a
+/// per-test `client_id` query appended.
+fn broker_url(client_id_suffix: &str) -> String {
+	let base = std::env::var("MQTT_BROKER_URL")
+		.unwrap_or_else(|_| "mqtt://localhost:1883".to_string());
+	format!("{base}?client_id=test_{client_id_suffix}")
+}
+
+/// When `MQTT_REQUIRE_BROKER` is set (CI with a live broker), a failed connection
+/// must fail the test instead of silently degrading to a no-op.
+fn broker_required() -> bool {
+	std::env::var("MQTT_REQUIRE_BROKER").is_ok()
+}
+
+/// Test serializers with full integration (connection + optional publish/subscribe if broker available)
+async fn test_serializer_integration<S>(name: &str)
+where
+	S: MessageSerializer<TestMessage> + Default + 'static,
+	<S as MessageSerializer<TestMessage>>::SerializeError: std::fmt::Debug,
+	<S as MessageSerializer<TestMessage>>::DeserializeError: std::fmt::Debug,
+{
+	let url = broker_url(&format!("{}_integration", name.to_lowercase()));
+
+	match MqttClient::<S>::connect(&url).await {
+		| Ok((client, connection)) => {
+			// Connection successful - test full cycle if possible
+			println!("{name} serializer: Connection successful");
+
+			// Test publisher creation
+			let topic = format!("test/integration/{}", name.to_lowercase());
+			let publisher = client.get_publisher::<TestMessage>(&topic);
+			assert!(
+				publisher.is_ok(),
+				"{name} serializer: Failed to create publisher",
+			);
+
+			// If we have both publisher and can create subscriber, test full cycle
+			match client.subscribe::<TestMessage>(topic.as_str()).await {
+				| Ok(mut subscriber) => {
+					println!(
+						"{name} serializer: Testing full publish/subscribe \
+						 cycle",
+					);
+
+					// Small delay to ensure subscription is ready
+					tokio::time::sleep(tokio::time::Duration::from_millis(200))
+						.await;
+
+					// Publish test message
+					let message = TestMessage {
+						text: format!("Integration test for {name}"),
+						id: 123,
+					};
+
+					match publisher.unwrap().publish(&message).await {
+						| Ok(_pub_result) => {
+							println!(
+								"{name} serializer: Message published \
+								 successfully",
+							);
+
+							// Try to receive with timeout
+							let timeout =
+								tokio::time::Duration::from_millis(1000);
+							let receive_result = tokio::time::timeout(
+								timeout,
+								subscriber.receive(),
+							)
+							.await;
+
+							match receive_result {
+								| Ok(Some(ReceiveEvent::Message(msg))) => {
+									assert_eq!(
+										msg.payload, message,
+										"{name} serializer: Message mismatch",
+									);
+									println!(
+										"{name} serializer: Full cycle \
+										 successful (serialize + deserialize)",
+									);
+								}
+								| Ok(Some(ReceiveEvent::DecodeFailed(f))) => {
+									let e = f.error;
+									panic!(
+										"{name} serializer: Deserialization \
+										 failed: {e:?}",
+									);
+								}
+								| Ok(Some(_)) => {
+									panic!(
+										"{name} serializer: unexpected \
+										 non-message stream event",
+									);
+								}
+								| Ok(None) => {
+									// When a broker is required (CI), the full
+									// round-trip must complete - a closed stream
+									// is a real failure, not a "busy" skip.
+									assert!(
+										!broker_required(),
+										"{name} serializer: broker required \
+										 but the subscriber stream closed \
+										 before a message arrived",
+									);
+									println!(
+										"{name} serializer: ⚠️ No message \
+										 received (broker might be busy)",
+									);
+								}
+								| Err(_) => {
+									assert!(
+										!broker_required(),
+										"{name} serializer: broker required \
+										 but the round-trip timed out",
+									);
+									println!(
+										"{name} serializer: ⚠️ Receive \
+										 timeout (broker might be slow)",
+									);
+								}
+							}
+						}
+						| Err(e) => {
+							assert!(
+								!broker_required(),
+								"{name} serializer: broker required but \
+								 publish failed: {e:?}",
+							);
+							println!(
+								"{name} serializer: ⚠️ Publish failed (broker \
+								 might be busy): {e:?}",
+							);
+						}
+					}
+				}
+				| Err(e) => {
+					assert!(
+						!broker_required(),
+						"{name} serializer: broker required but subscribe \
+						 failed: {e:?}",
+					);
+					println!(
+						"{name} serializer: ⚠️ Subscription failed: {e:?}",
+					);
+				}
+			}
+
+			// Always shutdown gracefully
+			let shutdown_result = connection.shutdown().await;
+			assert!(
+				shutdown_result.is_ok(),
+				"{name} serializer: Failed to shutdown",
+			);
+
+			println!("{name} serializer: Integration test completed");
+		}
+		| Err(e) => {
+			assert!(
+				!broker_required(),
+				"{name} serializer: MQTT_REQUIRE_BROKER is set but connecting \
+				 to the broker failed: {e:?}",
+			);
+			// Connection failed - OK locally without a broker.
+			println!(
+				"{name} serializer: Connection failed (expected without a \
+				 broker): {e:?}",
+			);
+
+			// Even without broker, we can test that the serializer compiles and can be instantiated
+			let _serializer = S::default();
+			println!("{name} serializer: Serializer instantiation successful",);
+		}
+	}
+}
+
+/// Test connection-only for serializers that require generated types
+async fn test_connection_only<S>(name: &str)
+where S: Default + Clone + Send + Sync + 'static {
+	let url = broker_url(&format!(
+		"{}_connection",
+		name.to_lowercase().replace(' ', "_")
+	));
+
+	match MqttClient::<S>::connect(&url).await {
+		| Ok((client, connection)) => {
+			println!("{name} serializer: Connection successful");
+
+			// Connection works - serializer is properly implemented
+			let _ = client; // Acknowledge we have a working client
+
+			let shutdown_result = connection.shutdown().await;
+			assert!(
+				shutdown_result.is_ok(),
+				"{name} serializer: Failed to shutdown",
+			);
+
+			println!(
+				"{name} serializer: Connection test successful (messaging \
+				 requires generated types)",
+			);
+		}
+		| Err(e) => {
+			assert!(
+				!broker_required(),
+				"{name} serializer: MQTT_REQUIRE_BROKER is set but connecting \
+				 to the broker failed: {e:?}",
+			);
+			// Connection failed - OK locally without a broker.
+			println!(
+				"{name} serializer: Connection failed (expected without a \
+				 broker): {e:?}",
+			);
+
+			// Even without broker, we can test that the serializer compiles and can be instantiated
+			let _serializer = S::default();
+			println!("{name} serializer: Serializer instantiation successful",);
+		}
+	}
+}
+
+// Compilation tests to verify all serializer traits are correctly implemented
+#[cfg(test)]
+mod compilation_tests {
+	use super::*;
+
+	#[test]
+	fn test_all_serializer_trait_bounds() {
+		// This test ensures all serializers implement the required traits correctly
+		// If any serializer has incorrect trait bounds, this won't compile
+
+		fn assert_messaging_serializer<S, T>()
+		where
+			S: MessageSerializer<T> + Default + 'static,
+			S::SerializeError: std::fmt::Debug,
+			S::DeserializeError: std::fmt::Debug,
+		{
+			// Just a compilation test - no runtime logic needed
+		}
+
+		fn assert_connection_serializer<S>()
+		where S: Default + Clone + Send + Sync + 'static {
+			// Just a compilation test - no runtime logic needed
+		}
+
+		// Test all messaging serializers
+		assert_messaging_serializer::<WincodeSerializer, TestMessage>();
+		assert_messaging_serializer::<JsonSerializer, TestMessage>();
+		assert_messaging_serializer::<MessagePackSerializer, TestMessage>();
+		assert_messaging_serializer::<CborSerializer, TestMessage>();
+		assert_messaging_serializer::<PostcardSerializer, TestMessage>();
+		assert_messaging_serializer::<RonSerializer, TestMessage>();
+		assert_messaging_serializer::<FlexbuffersSerializer, TestMessage>();
+
+		// Test connection-only serializers
+		assert_connection_serializer::<ProtobufSerializer>();
+
+		println!("All serializer trait bounds are correct");
+	}
+
+	#[test]
+	fn test_message_serialization_compatibility() {
+		// Test that our unified TestMessage works with different derive macros
+		let test_msg = TestMessage {
+			text: "Test message".to_string(),
+			id: 42,
+		};
+
+		// This would fail to compile if derives are incompatible
+		let cloned = test_msg.clone();
+		assert_eq!(test_msg, cloned);
+
+		// Test Debug trait
+		let debug_str = format!("{test_msg:?}");
+		assert!(debug_str.contains("Test message"));
+		assert!(debug_str.contains("42"));
+
+		println!("Unified TestMessage works with all required traits");
+	}
+}

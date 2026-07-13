@@ -1,0 +1,20 @@
+use mqtt_typed_client::mqtt_topic;
+
+#[allow(dead_code)]
+#[derive(Debug, Default)]
+#[mqtt_topic("sensors/s/{sensor_id}/+/+/data/{room}")]
+pub struct SensorReading {
+	sensor_id: u32,
+	room: String,
+	payload: String,
+}
+
+fn main() {
+	println!("Topic pattern: {}", SensorReading::TOPIC_PATTERN);
+	println!("MQTT pattern: {}", SensorReading::MQTT_PATTERN);
+	let _reading = SensorReading {
+		sensor_id: 1,
+		room: "Living Room".to_string(),
+		payload: "Temperature: 22C".to_string(),
+	};
+}

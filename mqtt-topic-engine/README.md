@@ -240,15 +240,16 @@ This is useful for:
 
 ### LRU Caching for Performance
 
-```rust,no_run
+```rust,ignore
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
 use mqtt_topic_engine::{TopicPatternPath, CacheStrategy};
+use std::num::NonZeroUsize;
 
 // Create pattern with LRU cache of 1000 entries
-let cache_size = 1000;
+let cache_size = NonZeroUsize::new(1000).unwrap();
 let pattern = TopicPatternPath::new_from_string(
     "sensors/{location}/{device}/data",
-    CacheStrategy::new(cache_size)
+    CacheStrategy::Lru(cache_size)
 )?;
 
 // First match - computed and cached
@@ -310,7 +311,7 @@ println!("{}", topic);
 
 ```rust,ignore
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
-use mqtt_topic_engine::{TopicRouter, TopicPatternPath, CacheStrategy, QoS, UnsubscribeAction};
+use mqtt_topic_engine::{TopicRouter, TopicPatternPath, CacheStrategy, QoS};
 
 let mut router = TopicRouter::new();
 
@@ -327,18 +328,12 @@ if needs_mqtt_subscribe {
     println!("New subscription needed on broker");
 }
 
-// Later: remove subscription and mirror the broker action
-match router.unsubscribe(&sub_id)? {
-    UnsubscribeAction::NoBrokerAction { .. } => {}
-    UnsubscribeAction::Unsubscribe { topic } => {
-        println!("Should unsubscribe from broker: {}", topic.mqtt_pattern());
-    }
-    UnsubscribeAction::Resubscribe { topic, qos } => {
-        println!(
-            "Should resubscribe broker topic {} at {qos}",
-            topic.mqtt_pattern()
-        );
-    }
+// Later: remove subscription
+let (needs_mqtt_unsubscribe, pattern) = router.unsubscribe(&sub_id)?;
+
+if needs_mqtt_unsubscribe {
+    // Unsubscribe from MQTT broker
+    println!("Should unsubscribe from broker: {}", pattern.mqtt_pattern());
 }
 # Ok(())
 # }
@@ -351,10 +346,6 @@ QoS** requested across all subscribers of the same pattern and tells you, via th
 `needs_subscribe` flag, exactly when a broker action is required. You only need to
 (re)subscribe on the broker when a pattern is new or when its aggregated `QoS` rises —
 adding another subscriber at the same or a lower `QoS` needs no wire traffic at all.
-When unsubscribing, the router returns an [`UnsubscribeAction`] so callers can
-unsubscribe the broker topic when the last local subscriber is removed, resubscribe
-at a lower `QoS` when the removed subscriber was the only high-`QoS` subscriber, or
-skip broker traffic when the effective subscription is unchanged.
 
 ```rust,ignore
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -499,10 +490,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Setup MQTT client
     let mqtt_options = MqttOptions::new("test-client", "broker.hivemq.com", 1883);
     let (client, mut eventloop) = AsyncClient::new(mqtt_options, 10);
-    
+
     // Setup topic router
     let mut router = TopicRouter::<String>::new();
-    
+
     // Add subscription with automatic broker subscription
     let pattern = TopicPatternPath::new_from_string("sensors/+/data", CacheStrategy::NoCache)?;
     let (needs_subscribe, _sub_id) = router.add_subscription(
@@ -510,22 +501,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         QoS::AtLeastOnce,
         "sensor_handler".to_string()
     );
-    
+
     if needs_subscribe {
         client.subscribe(pattern.mqtt_pattern().as_ref(), QoS::AtLeastOnce).await?;
     }
-    
+
     // Handle incoming messages
     loop {
         match eventloop.poll().await {
             Ok(Event::Incoming(Packet::Publish(publish))) => {
                 let topic = TopicPath::new(publish.topic.as_str());
                 let subscribers = router.get_subscribers(&topic);
-                
+
                 for (_sub_id, (pattern, _qos), handler) in subscribers {
-                    println!("Handler '{}' received message on pattern: {}", 
+                    println!("Handler '{}' received message on pattern: {}",
                         handler, pattern.topic_pattern());
-                    
+
                     // Route to appropriate handler
                     // process_message(handler, &publish.payload);
                 }
@@ -537,7 +528,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    
+
     Ok(())
 }
 ```
@@ -625,7 +616,7 @@ use arcstr::ArcStr;
 
 // All of these work - the API accepts impl Into<ArcStr>:
 let topic1 = TopicPath::new("sensors/temp");                    // &str
-let topic2 = TopicPath::new(String::from("sensors/temp"));      // String  
+let topic2 = TopicPath::new(String::from("sensors/temp"));      // String
 let topic3 = TopicPath::new(ArcStr::from("sensors/temp"));      // ArcStr directly
 
 // For performance-critical code, reuse ArcStr to avoid allocations:
@@ -649,19 +640,20 @@ Not needed for simple one-off topic matching — just use `&str`, it's simpler.
 
 ### Cache Strategies
 
-```rust,no_run
+```rust,ignore
 # fn main() {
 use mqtt_topic_engine::CacheStrategy;
+use std::num::NonZeroUsize;
 
 // No caching (minimal memory, recompute every match)
 let no_cache = CacheStrategy::NoCache;
 
 // LRU cache with 100 entries (balance memory/performance)
 // Note: requires the 'lru-cache' feature (enabled by default)
-let lru_100 = CacheStrategy::new(100);
+let lru_100 = CacheStrategy::Lru(NonZeroUsize::new(100).unwrap());
 
 // LRU cache with 10000 entries (high performance, more memory)
-let lru_10k = CacheStrategy::new(10000);
+let lru_10k = CacheStrategy::Lru(NonZeroUsize::new(10000).unwrap());
 # let _ = (no_cache, lru_100, lru_10k);
 # }
 ```
@@ -714,7 +706,7 @@ if let Some(location) = topic_match.get_named_param("location") {
 
 Topic engine is designed for high-performance applications:
 
-- **Matching:** O(n) where n = number of topic segments  
+- **Matching:** O(n) where n = number of topic segments
 - **Routing:** O(m) where m = number of matching subscriptions
 - **Memory:** Optimized with `arcstr` and `smallvec` for minimal allocations
 - **Caching:** Optional LRU cache for repeated topic matches

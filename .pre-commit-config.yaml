@@ -6,7 +6,7 @@ repos:
         entry: >
           bash -c '
           set -euo pipefail;
-          cargo fmt --all
+          cargo +nightly fmt --all
           '
         language: system
         pass_filenames: false
@@ -24,7 +24,10 @@ repos:
           --feature-powerset --depth 2
           --at-least-one-of rumqttc-v4,rumqttc-v5
           --mutually-exclusive-features rumqttc-v4,rumqttc-v5
+          --mutually-exclusive-features tls-rustls,tls-rustls-no-provider
           --mutually-exclusive-features rumqttc-use-rustls,rumqttc-use-rustls-no-provider
+          --mutually-exclusive-features default,tls-rustls-no-provider
+          --mutually-exclusive-features default,rumqttc-use-rustls-no-provider
           --no-dev-deps
           -p mqtt-typed-client-next
           -p mqtt-typed-client-core-next

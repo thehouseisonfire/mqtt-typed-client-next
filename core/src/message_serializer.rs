@@ -2,32 +2,34 @@
 
 use std::fmt::Debug;
 
-#[cfg(feature = "wincode-serializer")]
-use wincode::{SchemaRead, SchemaWrite, config::DefaultConfig};
 // Used by the serde-based serializers; unused under `--no-default-features`.
 #[cfg(any(
-    feature = "json",
-    feature = "messagepack",
-    feature = "cbor",
-    feature = "postcard",
-    feature = "ron",
-    feature = "flexbuffers",
+	feature = "json",
+	feature = "messagepack",
+	feature = "cbor",
+	feature = "postcard",
+	feature = "ron",
+	feature = "flexbuffers",
 ))]
 use serde::{Serialize, de::DeserializeOwned};
+#[cfg(feature = "wincode-serializer")]
+use wincode::{SchemaRead, SchemaWrite, config::DefaultConfig};
 
 /// Trait for serializing and deserializing MQTT message payloads.
 ///
 /// Implement this trait to use custom serialization formats.
-pub trait MessageSerializer<T>: Default + Clone + Send + Sync + 'static {
-    /// Error type for serialization failures
-    type SerializeError: Debug + Send + Sync + 'static;
-    /// Error type for deserialization failures
-    type DeserializeError: Debug + Send + Sync + 'static;
+pub trait MessageSerializer<T>:
+	Default + Clone + Send + Sync + 'static
+{
+	/// Error type for serialization failures
+	type SerializeError: Debug + Send + Sync + 'static;
+	/// Error type for deserialization failures
+	type DeserializeError: Debug + Send + Sync + 'static;
 
-    /// Convert data to bytes for MQTT transmission
-    fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError>;
-    /// Convert bytes from MQTT into typed data
-    fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError>;
+	/// Convert data to bytes for MQTT transmission
+	fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError>;
+	/// Convert bytes from MQTT into typed data
+	fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError>;
 }
 
 /// Default serializer using wincode format.
@@ -41,30 +43,29 @@ pub struct WincodeSerializer;
 
 #[cfg(feature = "wincode-serializer")]
 impl WincodeSerializer {
-    /// Creates a new serializer with default configuration.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self
-    }
+	/// Creates a new serializer with default configuration.
+	#[must_use]
+	pub const fn new() -> Self {
+		Self
+	}
 }
 
 #[cfg(feature = "wincode-serializer")]
 impl<T> MessageSerializer<T> for WincodeSerializer
 where
-    T: SchemaWrite<DefaultConfig, Src = T>
-        + for<'de> SchemaRead<'de, DefaultConfig, Dst = T>
-        + 'static,
+	T: SchemaWrite<DefaultConfig, Src = T> + 'static,
+	for<'a> T: SchemaRead<'a, DefaultConfig, Dst = T>,
 {
-    type SerializeError = wincode::WriteError;
-    type DeserializeError = wincode::ReadError;
+	type SerializeError = wincode::WriteError;
+	type DeserializeError = wincode::ReadError;
 
-    fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
-        wincode::serialize(data)
-    }
+	fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
+		wincode::serialize(data)
+	}
 
-    fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
-        wincode::deserialize_exact(bytes)
-    }
+	fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
+		wincode::deserialize_exact(bytes)
+	}
 }
 
 /// JSON serializer using `serde_json`.
@@ -78,28 +79,27 @@ pub struct JsonSerializer;
 
 #[cfg(feature = "json")]
 impl JsonSerializer {
-    /// Creates a new JSON serializer.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self
-    }
+	/// Creates a new JSON serializer.
+	#[must_use]
+	pub const fn new() -> Self {
+		Self
+	}
 }
 
 #[cfg(feature = "json")]
 impl<T> MessageSerializer<T> for JsonSerializer
-where
-    T: Serialize + DeserializeOwned + 'static,
+where T: Serialize + DeserializeOwned + 'static
 {
-    type SerializeError = serde_json::Error;
-    type DeserializeError = serde_json::Error;
+	type SerializeError = serde_json::Error;
+	type DeserializeError = serde_json::Error;
 
-    fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
-        serde_json::to_vec(data)
-    }
+	fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
+		serde_json::to_vec(data)
+	}
 
-    fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
-        serde_json::from_slice(bytes)
-    }
+	fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
+		serde_json::from_slice(bytes)
+	}
 }
 
 /// `MessagePack` serializer using rmp-serde.
@@ -113,28 +113,27 @@ pub struct MessagePackSerializer;
 
 #[cfg(feature = "messagepack")]
 impl MessagePackSerializer {
-    /// Creates a new `MessagePack` serializer.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self
-    }
+	/// Creates a new `MessagePack` serializer.
+	#[must_use]
+	pub const fn new() -> Self {
+		Self
+	}
 }
 
 #[cfg(feature = "messagepack")]
 impl<T> MessageSerializer<T> for MessagePackSerializer
-where
-    T: Serialize + DeserializeOwned + 'static,
+where T: Serialize + DeserializeOwned + 'static
 {
-    type SerializeError = rmp_serde::encode::Error;
-    type DeserializeError = rmp_serde::decode::Error;
+	type SerializeError = rmp_serde::encode::Error;
+	type DeserializeError = rmp_serde::decode::Error;
 
-    fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
-        rmp_serde::to_vec(data)
-    }
+	fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
+		rmp_serde::to_vec(data)
+	}
 
-    fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
-        rmp_serde::from_slice(bytes)
-    }
+	fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
+		rmp_serde::from_slice(bytes)
+	}
 }
 
 /// CBOR serializer using ciborium.
@@ -148,30 +147,29 @@ pub struct CborSerializer;
 
 #[cfg(feature = "cbor")]
 impl CborSerializer {
-    /// Creates a new CBOR serializer.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self
-    }
+	/// Creates a new CBOR serializer.
+	#[must_use]
+	pub const fn new() -> Self {
+		Self
+	}
 }
 
 #[cfg(feature = "cbor")]
 impl<T> MessageSerializer<T> for CborSerializer
-where
-    T: Serialize + DeserializeOwned + 'static,
+where T: Serialize + DeserializeOwned + 'static
 {
-    type SerializeError = ciborium::ser::Error<std::io::Error>;
-    type DeserializeError = ciborium::de::Error<std::io::Error>;
+	type SerializeError = ciborium::ser::Error<std::io::Error>;
+	type DeserializeError = ciborium::de::Error<std::io::Error>;
 
-    fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
-        let mut buffer = Vec::new();
-        ciborium::ser::into_writer(data, &mut buffer)?;
-        Ok(buffer)
-    }
+	fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
+		let mut buffer = Vec::new();
+		ciborium::ser::into_writer(data, &mut buffer)?;
+		Ok(buffer)
+	}
 
-    fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
-        ciborium::de::from_reader(bytes)
-    }
+	fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
+		ciborium::de::from_reader(bytes)
+	}
 }
 
 /// Postcard serializer using postcard crate.
@@ -186,28 +184,27 @@ pub struct PostcardSerializer;
 
 #[cfg(feature = "postcard")]
 impl PostcardSerializer {
-    /// Creates a new Postcard serializer.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self
-    }
+	/// Creates a new Postcard serializer.
+	#[must_use]
+	pub const fn new() -> Self {
+		Self
+	}
 }
 
 #[cfg(feature = "postcard")]
 impl<T> MessageSerializer<T> for PostcardSerializer
-where
-    T: Serialize + DeserializeOwned + 'static,
+where T: Serialize + DeserializeOwned + 'static
 {
-    type SerializeError = postcard::Error;
-    type DeserializeError = postcard::Error;
+	type SerializeError = postcard::Error;
+	type DeserializeError = postcard::Error;
 
-    fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
-        postcard::to_allocvec(data)
-    }
+	fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
+		postcard::to_allocvec(data)
+	}
 
-    fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
-        postcard::from_bytes(bytes)
-    }
+	fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
+		postcard::from_bytes(bytes)
+	}
 }
 
 /// Protocol Buffers serializer using prost crate.
@@ -222,30 +219,29 @@ pub struct ProtobufSerializer;
 
 #[cfg(feature = "protobuf")]
 impl ProtobufSerializer {
-    /// Creates a new Protobuf serializer.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self
-    }
+	/// Creates a new Protobuf serializer.
+	#[must_use]
+	pub const fn new() -> Self {
+		Self
+	}
 }
 
 #[cfg(feature = "protobuf")]
 impl<T> MessageSerializer<T> for ProtobufSerializer
-where
-    T: prost::Message + Default + 'static,
+where T: prost::Message + Default + 'static
 {
-    type SerializeError = prost::EncodeError;
-    type DeserializeError = prost::DecodeError;
+	type SerializeError = prost::EncodeError;
+	type DeserializeError = prost::DecodeError;
 
-    fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
-        let mut buf = Vec::new();
-        data.encode(&mut buf)?;
-        Ok(buf)
-    }
+	fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
+		let mut buf = Vec::new();
+		data.encode(&mut buf)?;
+		Ok(buf)
+	}
 
-    fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
-        T::decode(bytes)
-    }
+	fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
+		T::decode(bytes)
+	}
 }
 
 /// RON (Rusty Object Notation) serializer using ron crate.
@@ -260,30 +256,29 @@ pub struct RonSerializer;
 
 #[cfg(feature = "ron")]
 impl RonSerializer {
-    /// Creates a new RON serializer.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self
-    }
+	/// Creates a new RON serializer.
+	#[must_use]
+	pub const fn new() -> Self {
+		Self
+	}
 }
 
 #[cfg(feature = "ron")]
 impl<T> MessageSerializer<T> for RonSerializer
-where
-    T: Serialize + DeserializeOwned + 'static,
+where T: Serialize + DeserializeOwned + 'static
 {
-    type SerializeError = Box<dyn std::error::Error + Send + Sync>;
-    type DeserializeError = Box<dyn std::error::Error + Send + Sync>;
+	type SerializeError = Box<dyn std::error::Error + Send + Sync>;
+	type DeserializeError = Box<dyn std::error::Error + Send + Sync>;
 
-    fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
-        let string = ron::to_string(data)?;
-        Ok(string.into_bytes())
-    }
+	fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
+		let string = ron::to_string(data)?;
+		Ok(string.into_bytes())
+	}
 
-    fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
-        let string = std::str::from_utf8(bytes)?; // Clean error handling without hacks
-        Ok(ron::from_str(string)?)
-    }
+	fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
+		let string = std::str::from_utf8(bytes)?; // Clean error handling without hacks
+		Ok(ron::from_str(string)?)
+	}
 }
 
 /// Flexbuffers serializer using flexbuffers crate.
@@ -298,142 +293,143 @@ pub struct FlexbuffersSerializer;
 
 #[cfg(feature = "flexbuffers")]
 impl FlexbuffersSerializer {
-    /// Creates a new Flexbuffers serializer.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self
-    }
+	/// Creates a new Flexbuffers serializer.
+	#[must_use]
+	pub const fn new() -> Self {
+		Self
+	}
 }
 
 #[cfg(feature = "flexbuffers")]
 impl<T> MessageSerializer<T> for FlexbuffersSerializer
-where
-    T: Serialize + DeserializeOwned + 'static,
+where T: Serialize + DeserializeOwned + 'static
 {
-    type SerializeError = flexbuffers::SerializationError;
-    type DeserializeError = flexbuffers::DeserializationError;
+	type SerializeError = flexbuffers::SerializationError;
+	type DeserializeError = flexbuffers::DeserializationError;
 
-    fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
-        flexbuffers::to_vec(data)
-    }
+	fn serialize(&self, data: &T) -> Result<Vec<u8>, Self::SerializeError> {
+		flexbuffers::to_vec(data)
+	}
 
-    fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
-        flexbuffers::from_slice(bytes)
-    }
+	fn deserialize(&self, bytes: &[u8]) -> Result<T, Self::DeserializeError> {
+		flexbuffers::from_slice(bytes)
+	}
 }
 
 #[cfg(test)]
 mod tests {
-    //! Round-trip tests (`serialize` → `deserialize` → equality) for the
-    //! built-in serializers. Each test is gated by the same feature that gates
-    //! the serializer it exercises. `protobuf` is intentionally not covered
-    //! here — `ProtobufSerializer` requires a `prost::Message` type, which would
-    //! need a generated/hand-written protobuf type beyond a minimal unit test.
+	//! Round-trip tests (`serialize` → `deserialize` → equality) for the
+	//! built-in serializers. Each test is gated by the same feature that gates
+	//! the serializer it exercises. `protobuf` is intentionally not covered
+	//! here — `ProtobufSerializer` requires a `prost::Message` type, which would
+	//! need a generated/hand-written protobuf type beyond a minimal unit test.
 
-    // Helper exists only when at least one covered serializer is enabled, so a
-    // `--no-default-features` build (no serializer) does not see a dead fn.
-    #[cfg(any(
-        feature = "wincode-serializer",
-        feature = "json",
-        feature = "messagepack",
-        feature = "cbor",
-        feature = "postcard",
-        feature = "ron",
-        feature = "flexbuffers",
-    ))]
-    fn round_trip<S, T>(serializer: &S, value: &T)
-    where
-        S: super::MessageSerializer<T>,
-        T: PartialEq + std::fmt::Debug,
-    {
-        let bytes = serializer
-            .serialize(value)
-            .expect("serialize should succeed");
-        let restored = serializer
-            .deserialize(&bytes)
-            .expect("deserialize should succeed");
-        assert_eq!(&restored, value, "round-trip must preserve the value");
-    }
+	// Helper exists only when at least one covered serializer is enabled, so a
+	// `--no-default-features` build (no serializer) does not see a dead fn.
+	#[cfg(any(
+		feature = "wincode-serializer",
+		feature = "json",
+		feature = "messagepack",
+		feature = "cbor",
+		feature = "postcard",
+		feature = "ron",
+		feature = "flexbuffers",
+	))]
+	fn round_trip<S, T>(serializer: &S, value: &T)
+	where
+		S: super::MessageSerializer<T>,
+		T: PartialEq + std::fmt::Debug,
+	{
+		let bytes = serializer
+			.serialize(value)
+			.expect("serialize should succeed");
+		let restored = serializer
+			.deserialize(&bytes)
+			.expect("deserialize should succeed");
+		assert_eq!(&restored, value, "round-trip must preserve the value");
+	}
 
-    // Shared message for the serde-based serializers. `serde` (with `derive`) is
-    // a non-optional dependency of this crate, so this type always compiles.
-    #[cfg(any(
-        feature = "json",
-        feature = "messagepack",
-        feature = "cbor",
-        feature = "postcard",
-        feature = "ron",
-        feature = "flexbuffers",
-    ))]
-    #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
-    struct SerdeMsg {
-        text: String,
-        id: u32,
-    }
+	// Shared message for the serde-based serializers. `serde` (with `derive`) is
+	// a non-optional dependency of this crate, so this type always compiles.
+	#[cfg(any(
+		feature = "json",
+		feature = "messagepack",
+		feature = "cbor",
+		feature = "postcard",
+		feature = "ron",
+		feature = "flexbuffers",
+	))]
+	#[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
+	struct SerdeMsg {
+		text: String,
+		id: u32,
+	}
 
-    #[cfg(any(
-        feature = "json",
-        feature = "messagepack",
-        feature = "cbor",
-        feature = "postcard",
-        feature = "ron",
-        feature = "flexbuffers",
-    ))]
-    fn serde_sample() -> SerdeMsg {
-        SerdeMsg {
-            text: "round-trip".to_string(),
-            id: 42,
-        }
-    }
+	#[cfg(any(
+		feature = "json",
+		feature = "messagepack",
+		feature = "cbor",
+		feature = "postcard",
+		feature = "ron",
+		feature = "flexbuffers",
+	))]
+	fn serde_sample() -> SerdeMsg {
+		SerdeMsg {
+			text: "round-trip".to_string(),
+			id: 42,
+		}
+	}
 
-    #[cfg(feature = "wincode-serializer")]
-    #[test]
-    fn wincode_round_trip() {
-        #[derive(wincode::SchemaWrite, wincode::SchemaRead, Debug, PartialEq)]
-        struct WincodeMsg {
-            text: String,
-            id: u32,
-        }
-        let msg = WincodeMsg {
-            text: "round-trip".to_string(),
-            id: 42,
-        };
-        round_trip(&super::WincodeSerializer::new(), &msg);
-    }
+	#[cfg(feature = "wincode-serializer")]
+	#[test]
+	fn wincode_round_trip() {
+		#[derive(
+			wincode::SchemaWrite, wincode::SchemaRead, Debug, PartialEq,
+		)]
+		struct WincodeMsg {
+			text: String,
+			id: u32,
+		}
+		let msg = WincodeMsg {
+			text: "round-trip".to_string(),
+			id: 42,
+		};
+		round_trip(&super::WincodeSerializer::new(), &msg);
+	}
 
-    #[cfg(feature = "json")]
-    #[test]
-    fn json_round_trip() {
-        round_trip(&super::JsonSerializer::new(), &serde_sample());
-    }
+	#[cfg(feature = "json")]
+	#[test]
+	fn json_round_trip() {
+		round_trip(&super::JsonSerializer::new(), &serde_sample());
+	}
 
-    #[cfg(feature = "messagepack")]
-    #[test]
-    fn messagepack_round_trip() {
-        round_trip(&super::MessagePackSerializer::new(), &serde_sample());
-    }
+	#[cfg(feature = "messagepack")]
+	#[test]
+	fn messagepack_round_trip() {
+		round_trip(&super::MessagePackSerializer::new(), &serde_sample());
+	}
 
-    #[cfg(feature = "cbor")]
-    #[test]
-    fn cbor_round_trip() {
-        round_trip(&super::CborSerializer::new(), &serde_sample());
-    }
+	#[cfg(feature = "cbor")]
+	#[test]
+	fn cbor_round_trip() {
+		round_trip(&super::CborSerializer::new(), &serde_sample());
+	}
 
-    #[cfg(feature = "postcard")]
-    #[test]
-    fn postcard_round_trip() {
-        round_trip(&super::PostcardSerializer::new(), &serde_sample());
-    }
+	#[cfg(feature = "postcard")]
+	#[test]
+	fn postcard_round_trip() {
+		round_trip(&super::PostcardSerializer::new(), &serde_sample());
+	}
 
-    #[cfg(feature = "ron")]
-    #[test]
-    fn ron_round_trip() {
-        round_trip(&super::RonSerializer::new(), &serde_sample());
-    }
+	#[cfg(feature = "ron")]
+	#[test]
+	fn ron_round_trip() {
+		round_trip(&super::RonSerializer::new(), &serde_sample());
+	}
 
-    #[cfg(feature = "flexbuffers")]
-    #[test]
-    fn flexbuffers_round_trip() {
-        round_trip(&super::FlexbuffersSerializer::new(), &serde_sample());
-    }
+	#[cfg(feature = "flexbuffers")]
+	#[test]
+	fn flexbuffers_round_trip() {
+		round_trip(&super::FlexbuffersSerializer::new(), &serde_sample());
+	}
 }

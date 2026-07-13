@@ -9,25 +9,24 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/holovskyi/mqtt-typed-client"
 authors = ["Artem Holovskyi <artem.holovskyi@gmail.com>"]
 
-# Shared dependency versions for all workspace members. Members opt in with
-# `rumqttc = { workspace = true, features = [...] }` and add their own features.
+# Shared dependency versions for all workspace members.
 [workspace.dependencies]
 rumqttc-v4 = { package = "rumqttc-v4-next", version = "0.33.0", path = "../rumqtt/rumqttc-v4", default-features = false }
 rumqttc-v5 = { package = "rumqttc-v5-next", version = "0.33.0", path = "../rumqtt/rumqttc-v5", default-features = false }
 
 [package]
 name = "mqtt-typed-client-next"
-version = "0.2.0"
-edition = "2024"
-rust-version = "1.89.0"
+version = "0.3.0"
+edition.workspace = true
+rust-version.workspace = true
 description = "Type-safe async MQTT client with automatic topic routing"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/holovskyi/mqtt-typed-client"
+license.workspace = true
+repository.workspace = true
 homepage = "https://github.com/holovskyi/mqtt-typed-client"
 documentation = "https://docs.rs/mqtt-typed-client"
 keywords = ["mqtt", "iot", "async", "typed", "client"]
 categories = ["network-programming", "asynchronous"]
-authors = ["Artem Holovskyi <artem.holovskyi@gmail.com>"]
+authors.workspace = true
 readme = "README.md"
 
 # The root crate lives at the repo root, so `cargo package` would otherwise sweep
@@ -37,12 +36,15 @@ readme = "README.md"
 # and need no exclude.
 # NOTE: `docs/COMPARISON_WITH_RUMQTTC.md` is `include_str!`-embedded as the
 # `comparison` module doc (src/lib.rs), so it MUST ship — exclude only the
-# internal docs (e.g. ROADMAP) rather than all of `docs/`.
+# internal docs (ROADMAP, the PLAN_*.md working docs) rather than all of `docs/`.
 exclude = [
 	".github/",
 	".cargo/",
 	"dev/",
 	"docs/ROADMAP.md",
+	"docs/PLAN_*.md",
+	"docs/FUTURE_WORK_RESEARCH.md",
+	"docs/research/",
 	"scripts/",
 	"examples/internal/",
 	"check_result.txt",
@@ -53,24 +55,24 @@ exclude = [
 	"rustfmt.toml",
 ]
 
-[lib]
-name = "mqtt_typed_client"
-
 # docs.rs must not build all features because the rumqttc-v4 and rumqttc-v5
 # backends are intentionally mutually exclusive.
 [package.metadata.docs.rs]
-features = ["rumqttc-v5", "macros", "wincode", "json", "rumqttc-url", "rumqttc-use-rustls"]
+features = ["rumqttc-v5", "macros", "wincode", "json", "tls-rustls"]
 
 [dependencies]
-mqtt-typed-client-core = { package = "mqtt-typed-client-core-next", path = "./core", version = "0.2.0", default-features = false }
+mqtt-typed-client-core = { package = "mqtt-typed-client-core-next", path = "./core", version = "0.3.0", default-features = false }
 
-mqtt-typed-client-macros = { package = "mqtt-typed-client-macros-next", path = "./macros", version = "0.2.0", optional = true }
+mqtt-typed-client-macros = { package = "mqtt-typed-client-macros-next", path = "./macros", version = "0.3.0", optional = true, default-features = false }
 
 rumqttc-v4 = { workspace = true, optional = true }
 rumqttc-v5 = { workspace = true, optional = true }
 
+[lib]
+name = "mqtt_typed_client"
+
 [features]
-default = ["rumqttc-v4", "macros", "wincode", "json", "rumqttc-url", "rumqttc-use-rustls"]
+default = ["rumqttc-v4", "macros", "wincode", "json", "tls-rustls"]
 rumqttc-v4 = ["dep:rumqttc-v4", "mqtt-typed-client-core/rumqttc-v4", "mqtt-typed-client-macros?/rumqttc-v4"]
 rumqttc-v5 = ["dep:rumqttc-v5", "mqtt-typed-client-core/rumqttc-v5", "mqtt-typed-client-macros?/rumqttc-v5"]
 macros = ["mqtt-typed-client-macros"]
@@ -83,12 +85,21 @@ protobuf = ["mqtt-typed-client-core/protobuf"]
 ron = ["mqtt-typed-client-core/ron"]
 flexbuffers = ["mqtt-typed-client-core/flexbuffers"]
 
-rumqttc-url = ["rumqttc-v4?/url", "rumqttc-v5?/url", "mqtt-typed-client-core/rumqttc-url"]
-rumqttc-websocket = ["rumqttc-v4?/websocket", "rumqttc-v5?/websocket", "mqtt-typed-client-core/rumqttc-websocket"]
-rumqttc-use-rustls = ["rumqttc-v4?/use-rustls", "rumqttc-v5?/use-rustls", "mqtt-typed-client-core/rumqttc-use-rustls"]
+# Transport capability features (route through core/backend).
+websocket = ["rumqttc-websocket", "mqtt-typed-client-core/websocket"]
+tls-rustls = ["rumqttc-v4?/use-rustls", "rumqttc-v5?/use-rustls", "mqtt-typed-client-core/tls-rustls"]
 # rustls without bundling a crypto provider (e.g. aws-lc-rs). Use this to bring
 # your own provider (such as ring) and avoid the aws-lc cross-compilation pain.
-rumqttc-use-rustls-no-provider = ["rumqttc-v4?/use-rustls-no-provider", "rumqttc-v5?/use-rustls-no-provider", "mqtt-typed-client-core/rumqttc-use-rustls-no-provider"]
+tls-rustls-no-provider = ["rumqttc-v4?/use-rustls-no-provider", "rumqttc-v5?/use-rustls-no-provider", "mqtt-typed-client-core/tls-rustls-no-provider"]
+tls-native = ["rumqttc-use-native-tls", "mqtt-typed-client-core/tls-native"]
+proxy = ["rumqttc-proxy", "mqtt-typed-client-core/proxy"]
+# SEMVER-EXEMPT escape hatch: raw backend options access (backend_tweak).
+unstable-backend-api = ["mqtt-typed-client-core/unstable-backend-api"]
+
+rumqttc-url = ["rumqttc-v4?/url", "rumqttc-v5?/url"]
+rumqttc-websocket = ["rumqttc-v4?/websocket", "rumqttc-v5?/websocket", "mqtt-typed-client-core/rumqttc-websocket"]
+rumqttc-use-rustls = ["tls-rustls"]
+rumqttc-use-rustls-no-provider = ["tls-rustls-no-provider"]
 rumqttc-use-native-tls = ["rumqttc-v4?/use-native-tls", "rumqttc-v5?/use-native-tls", "mqtt-typed-client-core/rumqttc-use-native-tls"]
 rumqttc-proxy = ["rumqttc-v4?/proxy", "rumqttc-v5?/proxy", "mqtt-typed-client-core/rumqttc-proxy"]
 
@@ -100,6 +111,7 @@ rand = "0.10.2"
 rumqttc-v4 = { workspace = true }
 rumqttc-v5 = { workspace = true }
 rustls-pki-types = { version = "1.9", features = ["std"] }
+rustls-pemfile = "2.1.0"
 serde = { version = "1.0.219", features = ["derive"] }
 bytes = "1"
 tokio = { version = "1.0", features = ["full"] }
@@ -111,11 +123,19 @@ chrono = { version = "0.4.41", features = ["serde"] }
 
 [[example]]
 name = "004_hello_world_tls"
-required-features = ["rumqttc-use-rustls"]
+required-features = ["tls-rustls"]
 
 [[example]]
 name = "100_all_serializers_demo"
 required-features = ["wincode", "json", "messagepack", "cbor", "postcard", "ron", "flexbuffers", "protobuf"]
+
+[[test]]
+name = "serializers_integration"
+required-features = ["wincode", "json", "messagepack", "cbor", "postcard", "ron", "flexbuffers", "protobuf"]
+
+[[test]]
+name = "serializer_macro_integration"
+required-features = ["macros", "wincode", "json"]
 
 [[example]]
 name = "rumqttc_v4_typed_client"
@@ -123,8 +143,8 @@ required-features = ["rumqttc-v4", "macros", "json"]
 
 [[example]]
 name = "rumqttc_v5_connect_properties"
-required-features = ["rumqttc-v5", "macros", "json"]
+required-features = ["rumqttc-v5", "macros", "json", "unstable-backend-api"]
 
 [[example]]
 name = "rumqttc_v5_publish_properties"
-required-features = ["rumqttc-v5", "macros", "json"]
+required-features = ["rumqttc-v5", "macros", "json", "unstable-backend-api"]

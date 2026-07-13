@@ -78,12 +78,19 @@
 //! // struct Event { /* ... */ }
 //!
 //! // 🔧 Solution: Use separate structs
-//! #[mqtt_topic("events/{event_type}/{details:#}", subscriber)]  
+//! #[mqtt_topic("events/{event_type}/{details:#}", subscriber)]
 //! struct EventReceived { event_type: String, details: String, payload: Vec<u8> }
 //!
 //! #[mqtt_topic("events/{event_type}", publisher)]
 //! struct EventToSend { event_type: String, payload: Vec<u8> }
 //! ```
+
+#![allow(
+	clippy::missing_errors_doc,
+	clippy::struct_excessive_bools,
+	clippy::too_many_lines,
+	clippy::unused_self
+)]
 
 mod analysis;
 #[cfg(test)]
@@ -153,17 +160,17 @@ use syn::{LitStr, parse::Parser, parse_macro_input};
 /// impl YourStruct {
 ///     pub const TOPIC_PATTERN: &'static str = "sensors/{id}/data";
 ///     pub const MQTT_PATTERN: &'static str = "sensors/+/data";
-///     
+///
 ///     // Subscriber methods (if enabled)
 ///     pub async fn subscribe<F>(client: &MqttClient<F>) -> Result<...> {
 ///         // Subscription logic
 ///     }
-///     
+///
 ///     // Publisher methods (if enabled)
 ///     pub async fn publish<F>(client: &MqttClient<F>, id: ParamType, data: &PayloadType) -> Result<...> {
 ///         // Publishing logic
 ///     }
-///     
+///
 ///     pub fn get_publisher<F>(client: &MqttClient<F>, id: ParamType) -> Result<...> {
 ///         // Publisher creation
 ///     }
@@ -301,17 +308,17 @@ use syn::{LitStr, parse::Parser, parse_macro_input};
 /// a `MessageConversionError` is returned.
 #[proc_macro_attribute]
 pub fn mqtt_topic(args: TokenStream, input: TokenStream) -> TokenStream {
-    let input_struct = parse_macro_input!(input as syn::DeriveInput);
+	let input_struct = parse_macro_input!(input as syn::DeriveInput);
 
-    let macro_args = match parse_macro_args(args) {
-        Ok(args) => args,
-        Err(err) => return err.to_compile_error().into(),
-    };
+	let macro_args = match parse_macro_args(args) {
+		| Ok(args) => args,
+		| Err(err) => return err.to_compile_error().into(),
+	};
 
-    match generate_mqtt_code(macro_args, &input_struct) {
-        Ok(tokens) => tokens.into(),
-        Err(err) => err.to_compile_error().into(),
-    }
+	match generate_mqtt_code(macro_args, &input_struct) {
+		| Ok(tokens) => tokens.into(),
+		| Err(err) => err.to_compile_error().into(),
+	}
 }
 
 /// Main orchestration function that coordinates analysis and code generation
@@ -328,132 +335,140 @@ pub fn mqtt_topic(args: TokenStream, input: TokenStream) -> TokenStream {
 /// All errors are converted to `syn::Error` with appropriate spans and
 /// descriptive messages for the best possible compile-time diagnostics.
 fn generate_mqtt_code(
-    macro_args: MacroArgs,
-    input_struct: &syn::DeriveInput,
+	macro_args: MacroArgs,
+	input_struct: &syn::DeriveInput,
 ) -> Result<proc_macro2::TokenStream, syn::Error> {
-    // Analyze the struct against the pattern
-    let context = analysis::StructAnalysisContext::analyze(input_struct, &macro_args.pattern)?;
+	// Analyze the struct against the pattern
+	let context = analysis::StructAnalysisContext::analyze(
+		input_struct,
+		&macro_args.pattern,
+	)?;
 
-    // Generate the complete implementation
-    let generator = codegen::CodeGenerator::new(context, macro_args);
-    generator.generate_complete_implementation(input_struct)
+	// Generate the complete implementation
+	let generator = codegen::CodeGenerator::new(context, macro_args);
+	Ok(generator.generate_complete_implementation(input_struct))
 }
 
 /// Parse macro arguments: pattern string and optional generation mode flags
 ///
 /// Supports: `pattern`, `(pattern, subscriber)`, `(pattern, publisher)`, `(pattern, subscriber, publisher)`
 fn parse_macro_args(args: TokenStream) -> Result<MacroArgs, syn::Error> {
-    let parser = syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated;
-    let args = parser.parse(args)?;
+	let parser = syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated;
+	let args = parser.parse(args)?;
 
-    if args.is_empty() {
-        return Err(syn::Error::new(
-            proc_macro2::Span::call_site(),
-            "mqtt_topic macro requires at least a topic pattern string",
-        ));
-    }
+	if args.is_empty() {
+		return Err(syn::Error::new(
+			proc_macro2::Span::call_site(),
+			"mqtt_topic macro requires at least a topic pattern string",
+		));
+	}
 
-    // First argument must be the pattern string
-    let pattern = match &args[0] {
-        syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Str(lit_str),
-            ..
-        }) => lit_str.clone(),
-        _ => {
-            return Err(syn::Error::new_spanned(
-                &args[0],
-                "First argument must be a string literal containing the topic \
+	// First argument must be the pattern string
+	let pattern = match &args[0] {
+		| syn::Expr::Lit(syn::ExprLit {
+			lit: syn::Lit::Str(lit_str),
+			..
+		}) => lit_str.clone(),
+		| _ => {
+			return Err(syn::Error::new_spanned(
+				&args[0],
+				"First argument must be a string literal containing the topic \
 				 pattern",
-            ));
-        }
-    };
+			));
+		}
+	};
 
-    let topic_pattern = parse_topic_pattern(&pattern)?;
+	let topic_pattern = parse_topic_pattern(&pattern)?;
 
-    // Default: generate both
-    let mut generate_subscriber = true;
-    let mut generate_publisher = true;
-    let mut explicit_modes = Vec::new();
-    let mut custom_serializer: Option<syn::Type> = None;
+	// Default: generate both
+	let mut generate_subscriber = true;
+	let mut generate_publisher = true;
+	let mut explicit_modes = Vec::new();
+	let mut custom_serializer: Option<syn::Type> = None;
 
-    // Parse optional mode flags and serializer
-    for arg in args.iter().skip(1) {
-        match arg {
-            syn::Expr::Path(expr_path) if expr_path.path.is_ident("subscriber") => {
-                explicit_modes.push("subscriber");
-            }
-            syn::Expr::Path(expr_path) if expr_path.path.is_ident("publisher") => {
-                explicit_modes.push("publisher");
-            }
-            syn::Expr::Assign(assign) => {
-                // Handle "serializer = Type" syntax
-                if let syn::Expr::Path(left_path) = &*assign.left {
-                    if left_path.path.is_ident("serializer") {
-                        if let syn::Expr::Path(right_path) = &*assign.right {
-                            // Convert path to Type
-                            let serializer_type = syn::Type::Path(syn::TypePath {
-                                qself: None,
-                                path: right_path.path.clone(),
-                            });
-                            custom_serializer = Some(serializer_type);
-                        } else {
-                            return Err(syn::Error::new_spanned(
-                                &assign.right,
-                                "Serializer must be a simple type path (e.g. \
+	// Parse optional mode flags and serializer
+	for arg in args.iter().skip(1) {
+		match arg {
+			| syn::Expr::Path(expr_path)
+				if expr_path.path.is_ident("subscriber") =>
+			{
+				explicit_modes.push("subscriber");
+			}
+			| syn::Expr::Path(expr_path)
+				if expr_path.path.is_ident("publisher") =>
+			{
+				explicit_modes.push("publisher");
+			}
+			| syn::Expr::Assign(assign) => {
+				// Handle "serializer = Type" syntax
+				if let syn::Expr::Path(left_path) = &*assign.left {
+					if left_path.path.is_ident("serializer") {
+						if let syn::Expr::Path(right_path) = &*assign.right {
+							// Convert path to Type
+							let serializer_type =
+								syn::Type::Path(syn::TypePath {
+									qself: None,
+									path: right_path.path.clone(),
+								});
+							custom_serializer = Some(serializer_type);
+						} else {
+							return Err(syn::Error::new_spanned(
+								&assign.right,
+								"Serializer must be a simple type path (e.g. \
 								 `JsonSerializer`). For a generic serializer, \
 								 declare a type alias first: `type MySer = \
 								 MySerializer<Foo>;` then use `serializer = \
 								 MySer`.",
-                            ));
-                        }
-                    } else {
-                        return Err(syn::Error::new_spanned(
-                            &assign.left,
-                            "Unknown attribute parameter. Only 'serializer' \
+							));
+						}
+					} else {
+						return Err(syn::Error::new_spanned(
+							&assign.left,
+							"Unknown attribute parameter. Only 'serializer' \
 							 is supported",
-                        ));
-                    }
-                } else {
-                    return Err(syn::Error::new_spanned(
-                        &assign.left,
-                        "Invalid attribute syntax",
-                    ));
-                }
-            }
-            _ => {
-                return Err(syn::Error::new_spanned(
-                    arg,
-                    "Invalid argument. Supported: 'subscriber', 'publisher', \
+						));
+					}
+				} else {
+					return Err(syn::Error::new_spanned(
+						&assign.left,
+						"Invalid attribute syntax",
+					));
+				}
+			}
+			| _ => {
+				return Err(syn::Error::new_spanned(
+					arg,
+					"Invalid argument. Supported: 'subscriber', 'publisher', \
 					 or 'serializer = Type'",
-                ));
-            }
-        }
-    }
+				));
+			}
+		}
+	}
 
-    if explicit_modes.len() > 2 {
-        return Err(syn::Error::new(
-            proc_macro2::Span::call_site(),
-            "Too many arguments. Only 'subscriber' and 'publisher' flags are \
+	if explicit_modes.len() > 2 {
+		return Err(syn::Error::new(
+			proc_macro2::Span::call_site(),
+			"Too many arguments. Only 'subscriber' and 'publisher' flags are \
 			 allowed",
-        ));
-    }
-    // Apply explicit modes if any were specified
-    if !explicit_modes.is_empty() {
-        generate_subscriber = explicit_modes.contains(&"subscriber");
-        generate_publisher = explicit_modes.contains(&"publisher");
-    }
+		));
+	}
+	// Apply explicit modes if any were specified
+	if !explicit_modes.is_empty() {
+		generate_subscriber = explicit_modes.contains(&"subscriber");
+		generate_publisher = explicit_modes.contains(&"publisher");
+	}
 
-    // Validate configuration
-    if !(generate_subscriber || generate_publisher) {
-        return Err(syn::Error::new(
-            proc_macro2::Span::call_site(),
-            "At least one of 'subscriber' or 'publisher' must be enabled",
-        ));
-    }
+	// Validate configuration
+	if !(generate_subscriber || generate_publisher) {
+		return Err(syn::Error::new(
+			proc_macro2::Span::call_site(),
+			"At least one of 'subscriber' or 'publisher' must be enabled",
+		));
+	}
 
-    // Check for multi-level wildcards if publisher is requested
-    if generate_publisher && topic_pattern.contains_hash() {
-        #[rustfmt::skip]
+	// Check for multi-level wildcards if publisher is requested
+	if generate_publisher && topic_pattern.contains_hash() {
+		#[rustfmt::skip]
 		return Err(syn::Error::new_spanned(
 			&pattern,
 			format!(
@@ -471,18 +486,18 @@ fn parse_macro_args(args: TokenStream) -> Result<MacroArgs, syn::Error> {
 				topic_pattern.topic_pattern()
 			),
 		));
-    }
+	}
 
-    let macro_args = MacroArgs {
-        pattern: topic_pattern,
-        generate_subscriber,
-        generate_publisher,
-        generate_typed_client: true,            // Enable by default
-        generate_last_will: generate_publisher, // Enable if publisher is requested
-        custom_serializer,
-    };
+	let macro_args = MacroArgs {
+		pattern: topic_pattern,
+		generate_subscriber,
+		generate_publisher,
+		generate_typed_client: true, // Enable by default
+		generate_last_will: generate_publisher, // Enable if publisher is requested
+		custom_serializer,
+	};
 
-    Ok(macro_args)
+	Ok(macro_args)
 }
 
 /// Parse and validate a topic pattern string
@@ -504,41 +519,50 @@ fn parse_macro_args(args: TokenStream) -> Result<MacroArgs, syn::Error> {
 /// - `#` wildcards must be at the end
 /// - Named parameters cannot be duplicated
 /// - Wildcard syntax must be correct
-fn parse_topic_pattern(topic_pattern_str: &LitStr) -> Result<TopicPatternPath, syn::Error> {
-    TopicPatternPath::new_from_string(topic_pattern_str.value(), CacheStrategy::NoCache).map_err(
-        |err| syn::Error::new_spanned(topic_pattern_str, format!("Invalid topic pattern: {err}")),
-    )
+fn parse_topic_pattern(
+	topic_pattern_str: &LitStr,
+) -> Result<TopicPatternPath, syn::Error> {
+	TopicPatternPath::new_from_string(
+		topic_pattern_str.value(),
+		CacheStrategy::NoCache,
+	)
+	.map_err(|err| {
+		syn::Error::new_spanned(
+			topic_pattern_str,
+			format!("Invalid topic pattern: {err}"),
+		)
+	})
 }
 
 /// Macro configuration arguments
 #[derive(Debug)]
 struct MacroArgs {
-    pattern: TopicPatternPath,
-    generate_subscriber: bool,
-    generate_publisher: bool,
-    generate_typed_client: bool,
-    generate_last_will: bool,
-    custom_serializer: Option<syn::Type>,
+	pattern: TopicPatternPath,
+	generate_subscriber: bool,
+	generate_publisher: bool,
+	generate_typed_client: bool,
+	generate_last_will: bool,
+	custom_serializer: Option<syn::Type>,
 }
 
 #[cfg(test)]
 mod test_helpers {
-    use super::*;
+	use super::*;
 
-    pub fn create_test_macro_args() -> MacroArgs {
-        let topic_pattern = TopicPatternPath::new_from_string(
-            "sensors/{sensor_id}/temp".to_string(),
-            CacheStrategy::NoCache,
-        )
-        .unwrap();
+	pub fn create_test_macro_args() -> MacroArgs {
+		let topic_pattern = TopicPatternPath::new_from_string(
+			"sensors/{sensor_id}/temp".to_string(),
+			CacheStrategy::NoCache,
+		)
+		.unwrap();
 
-        MacroArgs {
-            pattern: topic_pattern,
-            generate_subscriber: true,
-            generate_publisher: true,
-            generate_typed_client: true,
-            generate_last_will: true,
-            custom_serializer: None,
-        }
-    }
+		MacroArgs {
+			pattern: topic_pattern,
+			generate_subscriber: true,
+			generate_publisher: true,
+			generate_typed_client: true,
+			generate_last_will: true,
+			custom_serializer: None,
+		}
+	}
 }

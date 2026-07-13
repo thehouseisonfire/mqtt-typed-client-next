@@ -1,71 +1,361 @@
 //! # MQTT Typed Client
 //!
-//! Local fork of `mqtt-typed-client` patched for the protocol-scoped
-//! `rumqttc-v4-next` and `rumqttc-v5-next` crates.
+#![doc = include_str!("../README.md")]
+//!
+//! ## API Reference
+//!
+//! Key traits and modules:
+//! - [`MessageSerializer`] - Custom serialization trait
+//! - [`prelude`] - Convenient imports for common use cases
+//! - [`info`] - Library metadata and version info
+//!
+//! ## See Also
+//!
+//! - [`crate::comparison`] - Detailed comparison with rumqttc
+//! - [`crate::examples`] - Complete usage examples with source code
 
-#[cfg(all(feature = "rumqttc-v4", feature = "rumqttc-v5"))]
-compile_error!("features `rumqttc-v4` and `rumqttc-v5` are mutually exclusive");
-#[cfg(not(any(feature = "rumqttc-v4", feature = "rumqttc-v5")))]
-compile_error!("enable exactly one of `rumqttc-v4` or `rumqttc-v5`");
-#[cfg(all(
-    feature = "rumqttc-use-rustls",
-    feature = "rumqttc-use-rustls-no-provider"
-))]
-compile_error!(
-    "features `rumqttc-use-rustls` and `rumqttc-use-rustls-no-provider` are mutually exclusive"
-);
-
+// Note: the backend's rustls stack is re-exported by core as `rustls` (under
+// the `tls-rustls`/`tls-rustls-no-provider` features) and flows through this
+// glob — build a `rustls::ClientConfig` for `Transport::Tls(..)` without a
+// version-matched rustls dependency of your own. PEM parsing still needs your
+// own crate (e.g. `rustls-pemfile`).
 pub use mqtt_typed_client_core::*;
 #[cfg(feature = "macros")]
 pub use mqtt_typed_client_macros::*;
 
-#[cfg(feature = "rumqttc-v4")]
-#[cfg(any(
-    feature = "rumqttc-use-rustls",
-    feature = "rumqttc-use-rustls-no-provider"
-))]
-pub use rumqttc_v4::tokio_rustls;
-#[cfg(feature = "rumqttc-v4")]
-#[cfg(any(
-    feature = "rumqttc-use-rustls",
-    feature = "rumqttc-use-rustls-no-provider"
-))]
-pub use rumqttc_v4::tokio_rustls::rustls;
-
-#[cfg(all(feature = "rumqttc-v5", not(feature = "rumqttc-v4")))]
-#[cfg(any(
-    feature = "rumqttc-use-rustls",
-    feature = "rumqttc-use-rustls-no-provider"
-))]
-pub use rumqttc_v5::tokio_rustls;
-#[cfg(all(feature = "rumqttc-v5", not(feature = "rumqttc-v4")))]
-#[cfg(any(
-    feature = "rumqttc-use-rustls",
-    feature = "rumqttc-use-rustls-no-provider"
-))]
-pub use rumqttc_v5::tokio_rustls::rustls;
-
 pub mod prelude {
-    //! Convenient imports for common use cases.
+	//! Convenient imports for common use cases
 
-    #[cfg(feature = "wincode")]
-    pub use mqtt_typed_client_core::WincodeSerializer;
-    pub use mqtt_typed_client_core::structured::*;
-    pub use mqtt_typed_client_core::{
-        ClientSettings, MessageSerializer, MqttClient, MqttClientConfig, MqttClientError,
-        MqttConnection, MqttOptions, MqttPublisher, MqttSubscriber, QoS, Result,
-        SubscriptionBuilder, Transport, TypedLastWill,
-    };
-    #[cfg(feature = "macros")]
-    pub use mqtt_typed_client_macros::*;
+	#[cfg(feature = "wincode")]
+	pub use mqtt_typed_client_core::WincodeSerializer;
+	pub use mqtt_typed_client_core::structured::*;
+	pub use mqtt_typed_client_core::{
+		ClientSettings, ConnectionOptions, MessageSerializer, MqttClient,
+		MqttClientConfig, MqttClientError, MqttConnection, MqttPublisher,
+		MqttSubscriber, QoS, ReceiveEvent, Result, SessionPolicy,
+		SubscriptionBuilder, Transport, TypedLastWill,
+	};
+	#[cfg(feature = "macros")]
+	pub use mqtt_typed_client_macros::*;
+}
+
+pub mod comparison {
+	//! Detailed comparison with rumqttc
+	//!
+	//! This module provides comprehensive side-by-side comparison
+	//! between mqtt-typed-client and the underlying rumqttc library.
+	//!
+	#![doc = include_str!("../docs/COMPARISON_WITH_RUMQTTC.md")]
+}
+
+pub mod examples {
+	//! Complete usage examples with source code
+	//!
+	//! This module contains comprehensive examples demonstrating
+	//! various features and use cases of mqtt-typed-client.
+	//!
+	#![doc = include_str!("../examples/README.md")]
+
+	pub mod example_000_hello_world {
+		//! # Hello World Example
+		//!
+		//! Basic publish/subscribe with macros - demonstrates the core functionality
+		//! of mqtt-typed-client with type-safe topic handling.
+		//!
+		//! ## Usage
+		//! ```bash
+		//! cargo run --example 000_hello_world
+		//! ```
+		//!
+		//! ## Source Code
+		//!
+		//! ```ignore
+		#![doc = include_str!("../examples/000_hello_world.rs")]
+		//! ```
+	}
+
+	pub mod example_001_ping_pong {
+		//! # Ping Pong Example
+		//!
+		//! Multi-client communication demonstrating bidirectional message exchange
+		//! and concurrent MQTT operations.
+		//!
+		//! ## Usage
+		//! ```bash
+		//! cargo run --example 001_ping_pong
+		//! ```
+		//!
+		//! ## Source Code
+		//!
+		//! ```ignore
+		#![doc = include_str!("../examples/001_ping_pong.rs")]
+		//! ```
+	}
+
+	pub mod example_002_configuration {
+		//! # Configuration Example
+		//!
+		//! Advanced client configuration showing how to customize MQTT settings,
+		//! `QoS` levels, and connection parameters.
+		//!
+		//! ## Usage
+		//! ```bash
+		//! cargo run --example 002_configuration
+		//! ```
+		//!
+		//! ## Source Code
+		//!
+		//! ```ignore
+		#![doc = include_str!("../examples/002_configuration.rs")]
+		//! ```
+	}
+
+	pub mod example_003_hello_world_lwt {
+		//! # Last Will & Testament Example
+		//!
+		//! Demonstrates MQTT Last Will & Testament functionality for handling
+		//! unexpected client disconnections.
+		//!
+		//! ## Usage
+		//! ```bash
+		//! # Terminal 1: Start subscriber
+		//! cargo run --example 003_hello_world_lwt
+		//!
+		//! # Terminal 2: Run publisher (sends message then crashes)
+		//! cargo run --example 003_hello_world_lwt -- --publisher
+		//! ```
+		//!
+		//! ## Source Code
+		//!
+		//! ```ignore
+		#![doc = include_str!("../examples/003_hello_world_lwt.rs")]
+		//! ```
+	}
+
+	pub mod example_004_hello_world_tls {
+		//! # TLS/SSL Connections Example
+		//!
+		//! Secure MQTT connections using TLS/SSL with custom certificate handling
+		//! for development and production environments.
+		//!
+		//! ## Usage
+		//! ```bash
+		//! cargo run --example 004_hello_world_tls
+		//! ```
+		//!
+		//! ## Source Code
+		//!
+		//! ```ignore
+		#![doc = include_str!("../examples/004_hello_world_tls.rs")]
+		//! ```
+	}
+
+	pub mod example_005_hello_world_serializers {
+		//! # Custom Serializers Example
+		//!
+		//! Demonstrates how to implement and use custom message serializers
+		//! beyond the built-in formats.
+		//!
+		//! ## Usage
+		//! ```bash
+		//! cargo run --example 005_hello_world_serializers
+		//! ```
+		//!
+		//! ## Source Code
+		//!
+		//! ```ignore
+		#![doc = include_str!("../examples/005_hello_world_serializers.rs")]
+		//! ```
+	}
+
+	pub mod example_006_retain_and_clear {
+		//! # Retained Messages Example
+		//!
+		//! MQTT retained message functionality with multiple clients connecting
+		//! at different times to showcase broker message persistence.
+		//!
+		//! ## Usage
+		//! ```bash
+		//! cargo run --example 006_retain_and_clear
+		//! ```
+		//!
+		//! ## Source Code
+		//!
+		//! ```ignore
+		#![doc = include_str!("../examples/006_retain_and_clear.rs")]
+		//! ```
+	}
+
+	pub mod example_007_custom_patterns {
+		//! # Custom Topic Patterns Example
+		//!
+		//! Advanced topic pattern usage showing how to override default patterns
+		//! for environment-specific routing and multi-tenant applications.
+		//!
+		//! ## Usage
+		//! ```bash
+		//! cargo run --example 007_custom_patterns
+		//! ```
+		//!
+		//! ## Source Code
+		//!
+		//! ```ignore
+		#![doc = include_str!("../examples/007_custom_patterns.rs")]
+		//! ```
+	}
+
+	pub mod example_008_modular_example {
+		//! # Modular Application Structure Example
+		//!
+		//! Production-ready application structure showing how to organize
+		//! MQTT applications with multiple modules and clean separation of concerns.
+		//!
+		//! ## Usage
+		//! ```bash
+		//! cargo run --example 008_modular_example
+		//! ```
+		//!
+		//! ## Source Code
+		//!
+		//! ```ignore
+		#![doc = include_str!("../examples/008_modular_example.rs")]
+		//! ```
+	}
+
+	pub mod example_009_message_metadata {
+		//! # Message Metadata Example
+		//!
+		//! Reading per-message metadata (`QoS`, retain, dup) and the concrete
+		//! matched topic via the optional `meta` / `topic` fields on a
+		//! `#[mqtt_topic]` struct, including the Arc-adaptive owned vs shared
+		//! field forms.
+		//!
+		//! ## Usage
+		//! ```bash
+		//! cargo run --example 009_message_metadata
+		//! ```
+		//!
+		//! ## Source Code
+		//!
+		//! ```ignore
+		#![doc = include_str!("../examples/009_message_metadata.rs")]
+		//! ```
+	}
+
+	pub mod example_010_connection_state {
+		//! # Connection State Observability Example
+		//!
+		//! Watching the connection lifecycle via
+		//! `MqttClient::connection_state()` — a `watch` channel of
+		//! `Connected` / `Reconnecting` / `Disconnected` states. A background
+		//! task logs transitions and reacts to the terminal `Disconnected`.
+		//!
+		//! ## Usage
+		//! ```bash
+		//! cargo run --example 010_connection_state
+		//! ```
+		//!
+		//! ## Source Code
+		//!
+		//! ```ignore
+		#![doc = include_str!("../examples/010_connection_state.rs")]
+		//! ```
+	}
+
+	pub mod example_100_all_serializers_demo {
+		//! # Complete Serializer Test Suite
+		//!
+		//! Comprehensive example testing all 8 available serializers
+		//! with full publish/subscribe verification.
+		//!
+		//! ## Usage
+		//! ```bash
+		//! cargo run --example 100_all_serializers_demo --all-features
+		//! ```
+		//!
+		//! ## Source Code
+		//!
+		//! ```ignore
+		#![doc = include_str!("../examples/100_all_serializers_demo.rs")]
+		//! ```
+	}
 }
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod info {
-    //! Library metadata and version information.
+	//! Library metadata and version information
 
-    pub const NAME: &str = env!("CARGO_PKG_NAME");
-    pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-    pub const DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
+	pub const NAME: &str = env!("CARGO_PKG_NAME");
+	pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+	pub const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
+	pub const DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
+	pub const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
+	pub const HAS_MACROS: bool = cfg!(feature = "macros");
+
+	/// Returns a formatted version string with feature information
+	#[must_use]
+	pub fn version_string() -> String {
+		if HAS_MACROS {
+			format!("{VERSION} (with macros)")
+		} else {
+			format!("{VERSION} (core only)")
+		}
+	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_version_is_valid() {
+		assert!(VERSION.chars().next().unwrap().is_ascii_digit());
+	}
+
+	#[test]
+	fn test_info_module() {
+		assert_eq!(info::VERSION, VERSION);
+		assert!(!info::version_string().is_empty());
+	}
+
+	#[cfg(feature = "macros")]
+	#[test]
+	// `HAS_MACROS` is a compile-time constant; asserting it documents that the
+	// `macros` feature wires the flag correctly.
+	#[allow(clippy::assertions_on_constants)]
+	fn test_macros_feature_enabled() {
+		assert!(info::HAS_MACROS);
+		assert!(info::version_string().contains("with macros"));
+	}
+
+	#[cfg(not(feature = "macros"))]
+	#[test]
+	#[allow(clippy::assertions_on_constants)]
+	fn test_macros_feature_disabled() {
+		assert!(!info::HAS_MACROS);
+		assert!(info::version_string().contains("core only"));
+	}
+}
+
+#[cfg(feature = "macros")]
+#[doc = ""]
+#[doc = "## Procedural Macros"]
+#[doc = ""]
+#[doc = "This build includes procedural macros for enhanced type safety and \
+         code generation."]
+#[doc = "See the `mqtt_typed_client_macros` documentation for detailed macro \
+         usage."]
+pub mod _macro_docs {}
+
+#[cfg(not(feature = "macros"))]
+#[doc = ""]
+#[doc = "## Core Only Build"]
+#[doc = ""]
+#[doc = "This build does not include procedural macros. To enable macros, add \
+         the 'macros' feature:"]
+#[doc = "```toml"]
+#[doc = "[dependencies]"]
+#[doc = "mqtt-typed-client = { version = \"0.2\", features = [\"macros\"] }"]
+#[doc = "```"]
+pub mod _core_only_docs {}

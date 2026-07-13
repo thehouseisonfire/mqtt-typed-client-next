@@ -1,6 +1,6 @@
 [package]
 name = "mqtt-typed-client-macros-next"
-version = "0.2.0"
+version = "0.3.0"
 edition.workspace = true
 rust-version.workspace = true
 description = "Procedural macros for type-safe async MQTT client with automatic topic routing"
@@ -16,6 +16,7 @@ name = "mqtt_typed_client_macros"
 proc-macro = true
 
 [features]
+default = ["rumqttc-v4"]
 rumqttc-v4 = ["mqtt-typed-client-core/rumqttc-v4"]
 rumqttc-v5 = ["mqtt-typed-client-core/rumqttc-v5"]
 
@@ -23,8 +24,8 @@ rumqttc-v5 = ["mqtt-typed-client-core/rumqttc-v5"]
 proc-macro2 = "1.0.95"
 quote = "1.0.40"
 syn = "2.0.103"
-mqtt-typed-client-core = { package = "mqtt-typed-client-core-next", path = "../core", version = "0.2.0", default-features = false }
+mqtt-typed-client-core = { package = "mqtt-typed-client-core-next", path = "../core", version = "0.3.0", default-features = false }
 
 [dev-dependencies]
 tokio = "1.45.1"
-mqtt-typed-client-core = { package = "mqtt-typed-client-core-next", path = "../core", version = "0.2.0", default-features = false }
+mqtt-typed-client-core = { package = "mqtt-typed-client-core-next", path = "../core", version = "0.3.0", default-features = false }
